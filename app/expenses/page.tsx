@@ -87,7 +87,7 @@ export default function ExpensesPage() {
                     filteredExpenses.map((exp) => (
                     <tr key={exp.id} className="border-t">
                         <td className="p-3">{exp.title}</td>
-                        <td className="p-3">${exp.amount}</td>
+                        <td className="p-3">${exp.amount.toLocaleString('en-us', {minimumFractionDigits: 2})}</td>
                         <td className="p-3 capitalize">{exp.category}</td>
                         <td className="p-3">{new Date(exp.date).toLocaleDateString("es-AR")}</td>
                         <td className="p-3 flex gap-2">
