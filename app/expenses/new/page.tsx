@@ -58,7 +58,7 @@ export default function NewExpensePage() {
             name="title"
             value={form.title}
             onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2"
+            className="bg-input mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2"
             required
           />
         </div>
@@ -70,7 +70,7 @@ export default function NewExpensePage() {
             name="amount"
             value={form.amount}
             onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2"
+            className="bg-input mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2"
             required
           />
         </div>
@@ -81,7 +81,7 @@ export default function NewExpensePage() {
             name="category"
             value={form.category}
             onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-500 shadow-sm p-2"
+            className="bg-input mt-1 block w-full rounded-md border-gray-500 shadow-sm p-2"
             required
           >
             <option value="">Seleccioná...</option>
@@ -100,7 +100,7 @@ export default function NewExpensePage() {
             name="date"
             value={form.date}
             onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2"
+            className="bg-input mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2"
             required
           />
         </div>

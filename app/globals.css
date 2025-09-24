@@ -26,6 +26,9 @@ body {
 .bg-secundario {
   background: #2b2b2b;
 }
+.bg-input {
+  background: #3c3c3c;
+}
 
 .border-card {
   border: 1px solid #616161;
