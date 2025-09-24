@@ -48,11 +48,11 @@ export default function NewExpensePage() {
     <main className="max-w-xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6">Agregar nuevo gasto</h1>
       
-      <form onSubmit={handleSubmit} className="space-y-4 bg-grey-50 shadow rounded-2xl p-6 bg-grey-50">
+      <form onSubmit={handleSubmit} className="border-card space-y-4 bg-grey-50 shadow rounded-md p-6 bg-secundario">
         {error && <p className="text-red-500">{error}</p>}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Título</label>
+          <label className="block text-sm font-medium text-gray-500">Título</label>
           <input
             type="text"
             name="title"
@@ -64,7 +64,7 @@ export default function NewExpensePage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Monto</label>
+          <label className="block text-sm font-medium text-gray-500">Monto</label>
           <input
             type="number"
             name="amount"
@@ -76,12 +76,12 @@ export default function NewExpensePage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Categoría</label>
+          <label className="block text-sm font-medium text-gray-500">Categoría</label>
           <select
             name="category"
             value={form.category}
             onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2"
+            className="mt-1 block w-full rounded-md border-gray-500 shadow-sm p-2"
             required
           >
             <option value="">Seleccioná...</option>
@@ -94,7 +94,7 @@ export default function NewExpensePage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Fecha</label>
+          <label className="block text-sm font-medium text-gray-500">Fecha</label>
           <input
             type="date"
             name="date"
@@ -107,7 +107,7 @@ export default function NewExpensePage() {
 
         <button
           type="submit"
-          className="w-full bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700"
+          className="w-full bg-boton px-4 py-2 rounded-xl hover:bg-indigo-700"
         >
           Guardar
         </button>

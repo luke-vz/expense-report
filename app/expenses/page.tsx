@@ -41,7 +41,7 @@ export default function ExpensesPage() {
         <h1 className="text-2xl font-bold">Listado de Gastos</h1>
         <Link
           href="/expenses/new"
-          className="bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700"
+          className="bg-boton px-4 py-2 rounded-md"
         >
           + Nuevo Gasto
         </Link>
@@ -71,9 +71,9 @@ export default function ExpensesPage() {
       </div>
 
       {/* Listado */}
-      <div className="bg-white shadow rounded-2xl overflow-hidden">
+      <div className="bg-secundario shadow rounded-md overflow-hidden border-card">
         <table className="w-full text-sm">
-          <thead className="bg-gray-100 text-left">
+          <thead className=" text-left">
             <tr>
               <th className="p-3">Título</th>
               <th className="p-3">Monto</th>
@@ -93,7 +93,7 @@ export default function ExpensesPage() {
                         <td className="p-3 flex gap-2">
                         <Link
                             href={`/expenses/${exp.id}/edit`}
-                            className="text-blue-600 hover:underline"
+                            className="text-blue-400 hover:underline"
                         >
                             Editar
                         </Link>
@@ -103,7 +103,7 @@ export default function ExpensesPage() {
                             await fetch(`/api/expenses/${exp.id}`, { method: "DELETE" });
                             setExpenses(expenses.filter((e) => e.id !== exp.id));
                             }}
-                            className="text-red-600 hover:underline"
+                            className="text-red-400 hover:underline"
                         >
                             Eliminar
                         </button>
