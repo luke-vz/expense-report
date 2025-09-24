@@ -59,7 +59,7 @@ export default function DashboardPage() {
 
   return (
     <div className="p-6 grid gap-8 grid-cols-1 md:grid-cols-2">
-      <div className="bg-white shadow rounded-2xl p-4">
+      <div className="border-card bg-secundario shadow rounded-md p-4">
         <h2 className="text-lg font-semibold mb-4">Gastos por Categoría</h2>
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
@@ -79,7 +79,7 @@ export default function DashboardPage() {
         </ResponsiveContainer>
       </div>
 
-      <div className="bg-white shadow rounded-2xl p-4">
+      <div className="border-card bg-secundario shadow rounded-md p-4">
         <h2 className="text-lg font-semibold mb-4">Gastos por Mes</h2>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={byMonth}>
