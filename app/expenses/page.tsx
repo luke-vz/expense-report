@@ -43,7 +43,7 @@ export default function ExpensesPage() {
           href="/expenses/new"
           className="bg-boton px-4 py-2 rounded-md"
         >
-          + Nuevo Gasto
+          Agregar
         </Link>
       </div>
 

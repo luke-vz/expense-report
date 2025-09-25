@@ -10,7 +10,7 @@ export default function NewExpensePage() {
     title: "",
     amount: "",
     category: "",
-    date: "",
+    date: new Date().toISOString().split('T')[0],
   });
   const [error, setError] = useState("");
 

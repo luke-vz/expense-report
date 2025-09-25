@@ -20,8 +20,12 @@ export default function Header() {
   return (
     <header className="header-bg shadow-md sticky top-0 z-50">
       <div className="max-w-6xl mx-auto flex justify-between items-center p-4">
-        <h1 className="text-xl font-bold ">Expense Report</h1>
-
+        <h1 className="text-xl font-bold ">
+          <Link
+            key="/"
+            href="/"
+            className="text-xl font-bold">Expense Report</Link>
+        </h1>
         {/* Desktop Links */}
         <nav className="hidden md:flex gap-4">
           {links.map((link) => (
@@ -84,7 +88,7 @@ export default function Header() {
                     href={link.href}
                     className={`block px-3 py-2 rounded-md transition-colors duration-300 ${
                       pathname === link.href
-                        ? "bg-indigo-600 text-white"
+                        ? "bg-boton"
                         : "text-gray-700 hover:bg-gray-100"
                     }`}
                     onClick={() => setOpen(false)}
