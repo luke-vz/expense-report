@@ -71,6 +71,7 @@ export default function NewExpensePage() {
             value={form.amount}
             onChange={handleChange}
             className="bg-input mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2"
+            inputMode="numeric"
             required
           />
         </div>
@@ -86,6 +87,7 @@ export default function NewExpensePage() {
           >
             <option value="">Seleccioná...</option>
             <option value="food">Comida</option>
+            <option value="house">Casa</option>
             <option value="transport">Transporte</option>
             <option value="utilities">Servicios</option>
             <option value="entertainment">Ocio</option>
