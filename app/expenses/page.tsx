@@ -15,8 +15,10 @@ interface Expense {
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [category, setCategory] = useState("");
-  const [month, setMonth] = useState("");
-
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth()+1;
+  const currentYear = currentDate.getFullYear();
+  const [month, setMonth] = useState(`${currentYear}-${currentMonth.toString().padStart(2, '0')}`);
   useEffect(() => {
     const fetchExpenses = async () => {
       const res = await fetch("/api/expenses");
