@@ -15,6 +15,7 @@ export default function Header() {
     { href: "/expenses", label: "Gastos" },
     { href: "/expenses/new", label: "Nuevo Gasto" },
     { href: "/dashboard", label: "Dashboard" },
+    { href: "/categories", label: "Categorías" },
   ];
 
   return (
