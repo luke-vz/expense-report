@@ -9,6 +9,8 @@ export default function CategoriesPage() {
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [mergingId, setMergingId] = useState<string | null>(null);
+  const [mergeTargetId, setMergeTargetId] = useState("");
   const [error, setError] = useState("");
 
   const addCategory = async (e: React.FormEvent) => {
@@ -58,6 +60,26 @@ export default function CategoriesPage() {
     reload();
   };
 
+  const mergeCategory = async (id: string) => {
+    const source = categories.find((c) => c.id === id);
+    const target = categories.find((c) => c.id === mergeTargetId);
+    if (!source || !target) return;
+    if (!confirm(`Se van a pasar ${source.expenseCount} gastos de "${source.name}" a "${target.name}" y se va a eliminar "${source.name}". ¿Seguís?`)) return;
+
+    const res = await fetch(`/api/categories/${id}/merge`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetId: mergeTargetId }),
+    });
+    if (!res.ok) {
+      setError("No se pudieron unir las categorías.");
+      return;
+    }
+    setError("");
+    setMergingId(null);
+    reload();
+  };
+
   return (
     <main className="max-w-xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6">Categorías</h1>
@@ -79,7 +101,7 @@ export default function CategoriesPage() {
 
       <ul className="bg-secundario border-card shadow rounded-md divide-y divide-gray-600">
         {categories.map((c) => (
-          <li key={c.id} className="flex items-center gap-3 p-3">
+          <li key={c.id} className="flex flex-wrap items-center gap-3 p-3">
             {editingId === c.id ? (
               <>
                 <input
@@ -96,24 +118,63 @@ export default function CategoriesPage() {
                   Cancelar
                 </button>
               </>
+            ) : mergingId === c.id ? (
+              <>
+                <span className="flex-1">{c.name} →</span>
+                <select
+                  value={mergeTargetId}
+                  onChange={(e) => setMergeTargetId(e.target.value)}
+                  className="bg-input rounded-md p-1"
+                >
+                  <option value="">Unir con...</option>
+                  {categories
+                    .filter((other) => other.id !== c.id)
+                    .map((other) => (
+                      <option key={other.id} value={other.id}>{other.name}</option>
+                    ))}
+                </select>
+                <button
+                  onClick={() => mergeCategory(c.id)}
+                  disabled={!mergeTargetId}
+                  className="text-blue-400 hover:underline disabled:opacity-50 disabled:no-underline"
+                >
+                  Unir
+                </button>
+                <button onClick={() => setMergingId(null)} className="text-gray-400 hover:underline">
+                  Cancelar
+                </button>
+              </>
             ) : (
               <>
                 <span className="flex-1">{c.name}</span>
                 <span className="text-sm text-gray-500">{c.expenseCount} gastos</span>
-                <button
-                  onClick={() => {
-                    setEditingId(c.id);
-                    setEditingName(c.name);
-                  }}
-                  className="text-blue-400 hover:underline"
-                >
-                  Renombrar
-                </button>
-                {c.expenseCount === 0 && (
-                  <button onClick={() => deleteCategory(c.id)} className="text-red-400 hover:underline">
-                    Eliminar
+                <div className="flex gap-3 w-full justify-end sm:w-auto">
+                  <button
+                    onClick={() => {
+                      setEditingId(c.id);
+                      setEditingName(c.name);
+                    }}
+                    className="text-blue-400 hover:underline"
+                  >
+                    Renombrar
                   </button>
-                )}
+                  {categories.length > 1 && (
+                    <button
+                      onClick={() => {
+                        setMergingId(c.id);
+                        setMergeTargetId("");
+                      }}
+                      className="text-blue-400 hover:underline"
+                    >
+                      Unir con…
+                    </button>
+                  )}
+                  {c.expenseCount === 0 && (
+                    <button onClick={() => deleteCategory(c.id)} className="text-red-400 hover:underline">
+                      Eliminar
+                    </button>
+                  )}
+                </div>
               </>
             )}
           </li>

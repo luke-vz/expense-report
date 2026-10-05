@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client"; // Import correcto desde @prisma/client
-import { prisma } from "@/lib/prisma"; // ✅ Correcto: usamos prisma desde lib/prisma.ts
+import { prisma } from "@/lib/prisma";
 import { serializeExpense } from "@/lib/serialize";
+import { parseExpenseInput } from "@/lib/validation";
 
 // GET /api/expenses/:id
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -19,20 +19,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "Missing ID" }, { status: 400 });
 
-  const body = await req.json();
-
-  const allowedFields = ["title","amount","date","currency","note","receiptUrl"] as const;
-
-  const data: Prisma.ExpenseUpdateInput = {};
-
-  allowedFields.forEach(f => {
-    if (body[f] !== undefined) {
-      if (f === "amount") data[f] = new Prisma.Decimal(body[f]);
-      else if (f === "date") data[f] = new Date(body[f]);
-      else data[f] = body[f];
-    }
-  });
-  if (body.categoryId) data.category = { connect: { id: String(body.categoryId) } };
+  const body = await req.json().catch(() => null);
+  const parsed = parseExpenseInput(body, { partial: true });
+  if (parsed.error !== undefined) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const { data } = parsed;
 
   try {
     const updated = await prisma.expense.update({ where: { id }, data, include: { category: true } });

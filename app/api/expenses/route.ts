@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { serializeExpense } from "@/lib/serialize";
+import { parseExpenseInput } from "@/lib/validation";
 
 export interface ExpenseFilter {
   categoryId?: string;
@@ -36,30 +37,16 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-
-  const requiredFields = ["title", "amount", "categoryId", "date"] as const;
-  for (const field of requiredFields) {
-    if (!body[field]) {
-      return NextResponse.json(
-        { error: `Missing required field: ${field}` },
-        { status: 400 }
-      );
-    }
-  }
-
-  const data: Prisma.ExpenseCreateInput = {
-    title: String(body.title),
-    amount: new Prisma.Decimal(body.amount),
-    category: { connect: { id: String(body.categoryId) } },
-    date: new Date(body.date),
-    currency: body.currency ? String(body.currency) : undefined,
-    note: body.note ? String(body.note) : undefined,
-    receiptUrl: body.receiptUrl ? String(body.receiptUrl) : undefined,
-  };
+  const body = await req.json().catch(() => null);
+  const parsed = parseExpenseInput(body);
+  if (parsed.error !== undefined) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  const { data } = parsed;
 
   try {
-    const expense = await prisma.expense.create({ data, include: { category: true } });
+    const expense = await prisma.expense.create({
+      data: data as Prisma.ExpenseUncheckedCreateInput,
+      include: { category: true },
+    });
     return NextResponse.json(serializeExpense(expense));
   } catch {
     return NextResponse.json({ error: "Failed to create expense" }, { status: 400 });
