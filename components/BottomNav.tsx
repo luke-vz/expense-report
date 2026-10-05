@@ -17,11 +17,11 @@ const links = [
   { href: "/categories", label: "Categorías", icon: icon("M3 12V3h9l9 9-9 9-9-9zM7.5 7.5h.01") },
 ];
 
-// Mobile-only tab bar with the quick-add button in the middle. Hidden on the expense
-// form screens, which pin their own actions to the bottom.
+// Mobile-only tab bar with the quick-add button in the middle. Hidden on the login page
+// and on the expense form screens, which pin their own actions to the bottom.
 export default function BottomNav() {
   const pathname = usePathname();
-  if (pathname === "/expenses/new" || pathname.endsWith("/edit")) return null;
+  if (pathname === "/login" || pathname === "/expenses/new" || pathname.endsWith("/edit")) return null;
 
   const item = (link: (typeof links)[number]) => (
     <Link

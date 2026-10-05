@@ -14,19 +14,20 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 
 **La base de producción TIENE DATOS REALES** (266 gastos al 2026-10-05) y no se puede resetear. La migración `categories_decimal_date` los conservó: las categorías que ya existían como texto (`Colegio`, `Entretenimiento`, `Tarjetas`) quedaron como categorías propias. Claude no tiene acceso a las credenciales de prod; cualquier operación directa sobre esa base la hace el usuario.
 
-**Riesgo conocido:** la app publicada no tiene login; la API responde a cualquiera. El usuario decidió **posponer el login** (no lo encares sin que lo pida).
+**Login (rama `feature/login`, en curso):** Google vía next-auth v4 con allowlist de mails. Hasta que se mergee y se configuren las variables en Vercel, la app publicada sigue sin login.
+
+**Plan aprobado — "pre-gasto"** (sacar foto ahora, completar después), en etapas: (0) login con Google — en curso; (1) pendientes con foto (tabla separada de `Expense`, foto en Vercel Blob comprimida a ~200 KB, globito en la barra inferior, al completar la foto queda en `receiptUrl`); (2) lectura del ticket con IA para precompletar — el usuario eligió el modelo más barato (Claude Haiku 4.5); (3) notificación push diaria (service worker + tarea diaria de Vercel; en iPhone solo con la app instalada). Solo Google como proveedor de login (Apple requiere cuenta paga de developer).
 
 **Próximos pasos:** el usuario está revisando el backlog de abajo para priorizarlo; no arranques ítems nuevos sin que elija. Lo recomendado: datos confiables: moneda ARS/USD, cuotas, dashboard mensual, clasificación fijo/variable/prescindible.
 
 ### Backlog (sin priorizar por el usuario todavía)
 
 - **Deploy/datos:** la base de Preview no se migra sola (`DATABASE_URL` de Preview es una variable distinta de la de Production; no está confirmado si apuntan a la misma base); backups; sacar `log: ["query"]` de `lib/prisma.ts` en prod.
-- **Seguridad:** login (Auth.js + Google con allowlist de los dos mails — propuesta).
 - **Prolijidad:** listado como tarjetas agrupadas por día en el celular (hoy la tabla se desplaza en horizontal); no hay tests (`parseAmount` es buen candidato para empezar).
 - **Carga:** moneda ARS/USD con totales separados; compras en cuotas (cada cuota imputa a su mes); medio de pago; UI para `note` y foto de ticket (`receiptUrl` existe sin usar); gastos fijos/recurrentes con vencimiento; carga sin conexión (service worker + cola local); sugerencias al cargar (autocompletar detalle con categoría, gastos frecuentes como atajos); importar resúmenes de tarjeta/banco.
 - **Análisis:** dashboard por mes (ranking con %, vs mes anterior y promedio 3 meses, top gastos); categorías marcadas fijo/variable/prescindible; subcategorías o etiquetas; búsqueda; equivalente en USD por fecha (inflación).
 - **Ahorro:** ingresos y tasa de ahorro; presupuestos por categoría con alertas; metas de ahorro; exportar CSV/Excel.
-- **Pareja (requiere login):** quién cargó cada gasto. No hace falta balance entre ellos: es caja común.
+- **Pareja:** quién cargó cada gasto (el login ya da el mail). No hace falta balance entre ellos: es caja común.
 
 ## Decisiones de arquitectura clave
 
@@ -36,6 +37,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 - **Migraciones con datos se escriben a mano.** `prisma migrate dev` genera `DROP COLUMN` + `ADD COLUMN NOT NULL`, que pierde datos y falla con tablas no vacías. Generar con `--create-only`, reescribir el SQL para hacer backfill (ver la migración `categories_decimal_date`), y probarlo sobre una base aparte con datos en el formato viejo antes de aplicarlo.
 - **Migraciones en el build, solo en producción y después de compilar** (`npm run build` → `prisma generate && next build && migrate:production`). Compilar primero hace que un build roto no toque la base; si `migrate deploy` falla, el deploy falla y producción sigue con la versión anterior. Las previews no migran para no tocar bases compartidas.
 - **Las categorías por defecto se siembran en la migración** (no hay seed script), así cualquier base nueva queda usable.
+- **next-auth v4 (estable), no v5** (en beta al 2026-10). En Vercel Production hay que fijar `NEXTAUTH_URL` a la URL pública: sin eso v4 usa `VERCEL_URL` (la URL propia de cada deploy) y Google rechaza el `redirect_uri`. El login no funciona en las previews (URL distinta, no registrada en Google); las previews ya están detrás de la protección de Vercel.
 - **Montos tipeados en formato argentino.** El input de monto es `type="text" inputMode="decimal"` (no `type="number"`, que según el teclado rechaza la coma) y se interpreta con `parseAmount` (`lib/format.ts`): coma = decimal, puntos = miles; sin coma, un punto seguido de exactamente 3 dígitos es de miles (`1.500` → 1500), si no es decimal (`12.5`). La API recibe siempre un número.
 - **Título opcional en la UI:** si queda vacío, el form manda el nombre de la categoría. La API sigue exigiendo `title` (el default lo pone el cliente).
 - **Dashboard con una sola serie por gráfico, un solo color** (`#3987e5`, validado contra el fondo de las tarjetas `#2b2b2b`). Con 9+ categorías una torta repite colores; el ranking en barras se lee por la etiqueta del eje y responde directo "dónde se va la plata".
@@ -69,7 +71,9 @@ npx prisma studio
 
 No hay tests ni test runner configurado.
 
-**Base local:** contenedor de podman `expense-report-pg` (Postgres 17, puerto 5434). `.env` (gitignoreado) con `DATABASE_URL="postgresql://expense:expense@localhost:5434/expense_report"`. Si el contenedor no existe:
+**Probar con sesión sin pasar por Google:** `node --env-file=.env scripts/dev-session-cookie.mjs [email]` imprime una cookie firmada con el `NEXTAUTH_SECRET` local (`curl -b "$(...)"` o `context.addCookies` en Playwright). Sin cookie, toda la API da 401.
+
+**Base local:** contenedor de podman `expense-report-pg` (Postgres 17, puerto 5434). `.env` (gitignoreado; plantilla en `.env.example`) con `DATABASE_URL="postgresql://expense:expense@localhost:5434/expense_report"` y las variables de auth. Si el contenedor no existe:
 
 ```bash
 podman run -d --name expense-report-pg -e POSTGRES_USER=expense -e POSTGRES_PASSWORD=expense \
