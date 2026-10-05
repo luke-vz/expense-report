@@ -18,13 +18,15 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 
 **Plan aprobado — "pre-gasto"** (sacar foto ahora, completar después), en etapas: (0) login con Google — hecho; (1) pendientes con foto (tabla separada de `Expense`, foto en Vercel Blob comprimida a ~200 KB, globito en la barra inferior, al completar la foto queda en `receiptUrl`); (2) lectura del ticket con IA para precompletar — el usuario eligió el modelo más barato (Claude Haiku 4.5); (3) notificación push diaria (service worker + tarea diaria de Vercel; en iPhone solo con la app instalada). Solo Google como proveedor de login (Apple requiere cuenta paga de developer).
 
+**Idea anotada por el usuario (2026-10-05) — "gasto por audio":** dictar "gasté 3.500 en el súper ayer" y que quede cargado. Encaja con el pre-gasto: el audio es otra forma de captura. Enfoque propuesto, sin implementar: dictado con la Web Speech API del navegador (`SpeechRecognition`, `lang: "es-AR"`; gratis, funciona en Chrome Android y Safari iOS) → texto → Claude Haiku 4.5 extrae monto, categoría, fecha y detalle → se abre el formulario de carga precompletado para confirmar. Claude no recibe audio directo, por eso la transcripción va en el navegador. Si el dictado no está disponible o no hay conexión, guardar la grabación como pendiente y procesarla después.
+
 **Próximos pasos:** el usuario está revisando el backlog de abajo para priorizarlo; no arranques ítems nuevos sin que elija. Lo recomendado: datos confiables: moneda ARS/USD, cuotas, dashboard mensual, clasificación fijo/variable/prescindible.
 
 ### Backlog (sin priorizar por el usuario todavía)
 
 - **Deploy/datos:** la base de Preview no se migra sola (`DATABASE_URL` de Preview es una variable distinta de la de Production; no está confirmado si apuntan a la misma base); backups; sacar `log: ["query"]` de `lib/prisma.ts` en prod.
 - **Prolijidad:** listado como tarjetas agrupadas por día en el celular (hoy la tabla se desplaza en horizontal); no hay tests (`parseAmount` es buen candidato para empezar).
-- **Carga:** moneda ARS/USD con totales separados; compras en cuotas (cada cuota imputa a su mes); medio de pago; UI para `note` y foto de ticket (`receiptUrl` existe sin usar); gastos fijos/recurrentes con vencimiento; carga sin conexión (service worker + cola local); sugerencias al cargar (autocompletar detalle con categoría, gastos frecuentes como atajos); importar resúmenes de tarjeta/banco.
+- **Carga:** moneda ARS/USD con totales separados; compras en cuotas (cada cuota imputa a su mes); medio de pago; UI para `note` y foto de ticket (`receiptUrl` existe sin usar); gastos fijos/recurrentes con vencimiento; carga sin conexión (service worker + cola local); sugerencias al cargar (autocompletar detalle con categoría, gastos frecuentes como atajos); **gasto por audio** (ver la idea anotada en Estado actual); importar resúmenes de tarjeta/banco.
 - **Análisis:** dashboard por mes (ranking con %, vs mes anterior y promedio 3 meses, top gastos); categorías marcadas fijo/variable/prescindible; subcategorías o etiquetas; búsqueda; equivalente en USD por fecha (inflación).
 - **Ahorro:** ingresos y tasa de ahorro; presupuestos por categoría con alertas; metas de ahorro; exportar CSV/Excel.
 - **Pareja:** quién cargó cada gasto (el login ya da el mail). No hace falta balance entre ellos: es caja común.
