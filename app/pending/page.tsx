@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import CaptureButton from "@/components/CaptureButton";
+import PhotoViewer from "@/components/PhotoViewer";
 import type { PendingExpense } from "@/lib/expenses";
 import { formatMoney } from "@/lib/format";
 import { notifyPendingChanged } from "@/lib/usePendingCount";
@@ -52,10 +53,7 @@ export default function PendingPage() {
         {(pending ?? []).map((item) => (
           <li key={item.id} className="flex gap-3 bg-secundario border-card rounded-md p-3">
             {item.photoUrl ? (
-              <a href={item.photoUrl} target="_blank" rel="noreferrer" className="shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element -- auth-protected API image */}
-                <img src={item.photoUrl} alt="Foto del pendiente" className="h-20 w-20 rounded object-cover" />
-              </a>
+              <PhotoViewer src={item.photoUrl} alt="Foto del pendiente" className="h-20 w-20 rounded object-cover bg-input" />
             ) : (
               <div className="h-20 w-20 shrink-0 rounded bg-input flex items-center justify-center text-2xl">📝</div>
             )}
