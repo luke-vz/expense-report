@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 
 const links = [
   { href: "/", label: "Home" },
@@ -22,21 +23,31 @@ export default function Header() {
         <Link href="/" className="text-lg md:text-xl font-bold">
           Expense Report
         </Link>
-        <nav className="hidden md:flex gap-4">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`px-3 py-2 rounded-md transition-colors duration-300 ${
-                pathname === link.href
-                  ? "bg-boton"
-                  : "text-gray-300 hover:bg-neutral-800 hover:text-white"
-              }`}
+        <div className="flex items-center gap-4">
+          <nav className="hidden md:flex gap-4">
+            {links.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`px-3 py-2 rounded-md transition-colors duration-300 ${
+                  pathname === link.href
+                    ? "bg-boton"
+                    : "text-gray-300 hover:bg-neutral-800 hover:text-white"
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+          {pathname !== "/login" && (
+            <button
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="text-sm text-gray-400 hover:text-white"
             >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
+              Salir
+            </button>
+          )}
+        </div>
       </div>
     </header>
   );
