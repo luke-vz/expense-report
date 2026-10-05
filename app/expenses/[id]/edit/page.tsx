@@ -3,8 +3,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import ExpenseForm, { ExpenseFormValues } from "@/components/ExpenseForm";
+import ExpenseForm, { ExpenseFormValues, ExpenseSubmit } from "@/components/ExpenseForm";
 import type { Expense } from "@/lib/expenses";
+import { toAmountInput } from "@/lib/format";
 
 export default function EditExpensePage() {
   const router = useRouter();
@@ -25,7 +26,7 @@ export default function EditExpensePage() {
         const expense: Expense = await res.json();
         setInitialValues({
           title: expense.title,
-          amount: expense.amount.toString(),
+          amount: toAmountInput(expense.amount),
           categoryId: expense.categoryId,
           date: expense.date.slice(0, 10), // "YYYY-MM-DD" para el input
         });
@@ -37,11 +38,11 @@ export default function EditExpensePage() {
     fetchExpense();
   }, [id]);
 
-  const updateExpense = async (values: ExpenseFormValues) => {
+  const updateExpense = async (expense: ExpenseSubmit) => {
     const res = await fetch(`/api/expenses/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...values, amount: parseFloat(values.amount) }),
+      body: JSON.stringify(expense),
     });
 
     if (!res.ok) return "Error al actualizar el gasto.";
@@ -52,9 +53,13 @@ export default function EditExpensePage() {
   if (!initialValues) return <p className="p-6">Cargando...</p>;
 
   return (
-    <main className="max-w-xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Editar gasto</h1>
-      <ExpenseForm initialValues={initialValues} submitLabel="Actualizar" onSubmit={updateExpense} />
-    </main>
+    <div>
+      <ExpenseForm
+        heading="Editar gasto"
+        initialValues={initialValues}
+        submitLabel="Actualizar"
+        onSubmit={updateExpense}
+      />
+    </div>
   );
 }
