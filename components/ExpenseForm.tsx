@@ -1,12 +1,13 @@
 // components/ExpenseForm.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import PhotoViewer from "@/components/PhotoViewer";
 import { useCategories } from "@/lib/useCategories";
 import { daysAgoISO, formatAmount, monthKey, monthLabel, parseAmount } from "@/lib/format";
 import { MAX_INSTALLMENTS, addMonths, splitAmount } from "@/lib/installments";
+import { compressImage } from "@/lib/compressImage";
 
 export interface ExpenseFormValues {
   title: string; // optional: empty means "use the category name"
@@ -23,6 +24,14 @@ export interface ExpenseSubmit {
   date: string;
   currency: string;
   installments?: number;
+  /** Receipt photo attached in this form (already compressed). */
+  photo?: Blob;
+}
+
+export interface PendingDraft {
+  photo: Blob;
+  amount: number | null;
+  note: string | null;
 }
 
 interface ExpenseFormProps {
@@ -34,6 +43,10 @@ interface ExpenseFormProps {
   autoFocusAmount?: boolean;
   /** Shows the "Cuotas" picker (new expenses only: an existing installment is edited on its own). */
   allowInstallments?: boolean;
+  /** Shows "📷 Foto del ticket" to attach a receipt photo while creating the expense. */
+  allowPhoto?: boolean;
+  /** With a photo attached, offers saving it as pending ("completar después"). */
+  onSaveAsPending?: (draft: PendingDraft) => Promise<string | void>;
   /** Receipt photo shown above the amount (completing a pending expense, or editing one). */
   photoUrl?: string | null;
   /** Returns an error message to show, or nothing on success. */
@@ -49,6 +62,8 @@ export default function ExpenseForm({
   allowAnother = false,
   autoFocusAmount = false,
   allowInstallments = false,
+  allowPhoto = false,
+  onSaveAsPending,
   photoUrl,
   onSubmit,
 }: ExpenseFormProps) {
@@ -57,6 +72,47 @@ export default function ExpenseForm({
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [installments, setInstallments] = useState(1);
+  const [photo, setPhoto] = useState<Blob | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [processingPhoto, setProcessingPhoto] = useState(false);
+
+  useEffect(() => {
+    if (!photo) {
+      setPhotoPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(photo);
+    setPhotoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photo]);
+
+  const onPhotoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow picking the same file again
+    if (!file) return;
+    setProcessingPhoto(true);
+    try {
+      setPhoto(await compressImage(file));
+      setError("");
+    } catch {
+      setError("No se pudo leer la imagen.");
+    } finally {
+      setProcessingPhoto(false);
+    }
+  };
+
+  const saveAsPending = async () => {
+    if (!photo || !onSaveAsPending) return;
+    const amount = parseAmount(form.amount);
+    setSaving(true);
+    const saveError = await onSaveAsPending({
+      photo,
+      amount: amount > 0 ? amount : null,
+      note: form.title.trim() || null,
+    });
+    setSaving(false);
+    setError(saveError ?? "");
+  };
 
   const today = daysAgoISO(0);
   const yesterday = daysAgoISO(1);
@@ -99,6 +155,7 @@ export default function ExpenseForm({
         date: form.date,
         currency: form.currency,
         ...(installments > 1 ? { installments } : {}),
+        ...(photo ? { photo } : {}),
       },
       another
     );
@@ -139,6 +196,41 @@ export default function ExpenseForm({
       {photoUrl && (
         <div className="mb-6 flex justify-center">
           <PhotoViewer src={photoUrl} alt="Foto del gasto" className="max-h-64 rounded-md object-contain" />
+        </div>
+      )}
+
+      {allowPhoto && !photoUrl && (
+        <div className="mb-6">
+          {photoPreview ? (
+            <div className="flex items-center gap-4">
+              <PhotoViewer src={photoPreview} alt="Foto del ticket" className="h-24 w-24 rounded-md object-cover" />
+              <div className="flex flex-col items-start gap-2 text-sm">
+                {onSaveAsPending && (
+                  <button
+                    type="button"
+                    onClick={saveAsPending}
+                    disabled={saving}
+                    className="text-[#3987e5] font-semibold disabled:opacity-50"
+                  >
+                    ¿Sin tiempo? Guardar como pendiente →
+                  </button>
+                )}
+                <button type="button" onClick={() => setPhoto(null)} className="text-gray-400">
+                  Quitar foto
+                </button>
+              </div>
+            </div>
+          ) : (
+            // No `capture` attribute: phones offer camera *or* gallery (screenshots too)
+            <label
+              className={`flex items-center justify-center gap-2 rounded-md border border-dashed border-[#616161] py-3 text-gray-300 ${
+                processingPhoto ? "opacity-50 pointer-events-none" : "cursor-pointer active:bg-neutral-800"
+              }`}
+            >
+              <input type="file" accept="image/*" className="sr-only" onChange={onPhotoFile} />
+              {processingPhoto ? "Procesando..." : "📷 Foto del ticket"}
+            </label>
+          )}
         </div>
       )}
 

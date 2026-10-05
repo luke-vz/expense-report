@@ -44,7 +44,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 - **Páginas** — todas client components (`"use client"`) que hacen `fetch` en `useEffect` y filtran/agregan en el cliente:
   - `/` — total del mes, cartel de pendientes, "Cargar gasto" + botón 📷, últimos 5 gastos.
   - `/expenses` — tabla con filtros de categoría y mes (en el cliente) y link a Categorías.
-  - `/expenses/new`, `/expenses/[id]/edit` — ambas usan `components/ExpenseForm.tsx`: carga rápida con monto grande arriba, categorías como botones ordenadas por uso, fecha Hoy/Ayer/otra y acciones fijas abajo. En el alta, "Guardar y otro" remonta el form (cambiando `key`) y muestra un aviso con "Deshacer". Con `?pending=<id>` completa un pendiente.
+  - `/expenses/new`, `/expenses/[id]/edit` — ambas usan `components/ExpenseForm.tsx`: carga rápida con monto grande arriba, categorías como botones ordenadas por uso, fecha Hoy/Ayer/otra y acciones fijas abajo. En el alta, "Guardar y otro" remonta el form (cambiando `key`) y muestra un aviso con "Deshacer". Con `?pending=<id>` completa un pendiente. En el alta normal hay "📷 Foto del ticket" (`allowPhoto`): la foto adjunta se sube primero como pendiente y el gasto se crea con `pendingId` (mismo camino que completar un pendiente, así queda como `receiptUrl`, también en cuotas); con foto adjunta aparece "Guardar como pendiente" (`onSaveAsPending`), que guarda foto + monto + detalle para completar después.
   - `/dashboard` — ranking de categorías en barras horizontales (con % del total) y barras por mes.
   - `/categories` — agregar, renombrar, unir y borrar.
   - `/pending` — capturar y listar pendientes.
