@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Expense Report
 
-## Getting Started
+App para registrar los gastos del hogar y entender en qué se va la plata. Pensada para usarse desde el celular, instalada como app, por dos personas que comparten una caja común.
 
-First, run the development server:
+Producción: https://expense-report-mu.vercel.app (requiere una cuenta de Google autorizada).
+
+## Qué hace
+
+- **Carga rápida:**
+  - monto grande con teclado numérico (acepta `1.500,50`) y moneda ARS o USD;
+  - categorías como botones, ordenadas por uso;
+  - atajos con los gastos más frecuentes y autocompletado del detalle;
+  - fecha Hoy/Ayer;
+  - "Guardar y otro" con "Deshacer".
+- **Cuotas:** se carga el total y la cantidad, y se crea una cuota por mes ("Heladera 2/6"). La home muestra lo comprometido a futuro.
+- **Fotos de tickets:** se adjuntan al cargar, o se guardan como **pendientes** para completar después (cámara o galería, también capturas de pantalla).
+- **Aviso de duplicados:** si alguien ya cargó el mismo monto, en la misma categoría y el mismo día.
+- **Listado** agrupado por día, con quién cargó cada gasto.
+- **Dashboard por mes:** total y variación contra el mes anterior y el promedio de 3 meses, ranking de categorías, gastos más grandes y tendencia de 12 meses.
+- **Categorías** editables (renombrar, unir, borrar).
+- **Login con Google** restringido a una lista de mails.
+
+## Stack
+
+Next.js 15 (App Router) · React 19 · Prisma 6 + PostgreSQL · Tailwind CSS 4 · Recharts · next-auth 4 (Google) · Vercel Blob (fotos, privado) · desplegado en Vercel.
+
+## Desarrollo local
+
+Requisitos: Node 22 y Postgres. Con podman o docker:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+podman run -d --name expense-report-pg -e POSTGRES_USER=expense -e POSTGRES_PASSWORD=expense \
+  -e POSTGRES_DB=expense_report -p 5434:5432 docker.io/library/postgres:17-alpine
+
+cp .env.example .env        # completar las variables (ver abajo)
+npm ci
+npx prisma migrate dev      # crea las tablas y las categorías por defecto
+npm run dev -- -p 3100      # http://localhost:3100
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Para probar sin pasar por Google se puede generar una cookie de sesión local:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+node --env-file=.env scripts/dev-session-cookie.mjs tu@mail.com "Tu Nombre"
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Variables de entorno
 
-## Learn More
+| Variable | Para qué |
+|---|---|
+| `DATABASE_URL` | Conexión a PostgreSQL |
+| `NEXTAUTH_SECRET` | Firma de las sesiones (`openssl rand -base64 32`) |
+| `NEXTAUTH_URL` | URL pública de la app (`http://localhost:3100` en local) |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Cliente OAuth de Google Cloud |
+| `ALLOWED_EMAILS` | Mails que pueden entrar, separados por coma |
+| `BLOB_STORE_ID` / `BLOB_READ_WRITE_TOKEN` | Almacenamiento de fotos en Vercel Blob. Sin ninguna, las fotos se guardan en `./.uploads` |
 
-To learn more about Next.js, take a look at the following resources:
+En Google Cloud Console, el cliente OAuth necesita estas URIs de redirección:
+- `https://expense-report-mu.vercel.app/api/auth/callback/google`
+- `http://localhost:3100/api/auth/callback/google`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Mientras la pantalla de consentimiento esté en modo prueba, los mails permitidos tienen que figurar como usuarios de prueba.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Scripts
 
-## Deploy on Vercel
+| Comando | Qué hace |
+|---|---|
+| `npm run dev` | Servidor de desarrollo (Turbopack) |
+| `npm run build` | `prisma generate` + `next build`; en Vercel Production además aplica las migraciones |
+| `npm run lint` | ESLint |
+| `npx tsc --noEmit` | Chequeo de tipos |
+| `npx prisma migrate dev --create-only --name <nombre>` | Generar una migración para revisarla antes de aplicarla |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploy
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Ramas y ambientes:** Vercel despliega `main` a producción y cada rama como preview.
+- **Flujo:** cada cambio va en una rama, que sale de `develop`, con su PR a `main`.
+- **Migraciones:** el build de producción aplica las migraciones pendientes después de compilar. Si algo falla, el deploy falla y producción sigue con la versión anterior.
+- **Datos reales:** la base de producción tiene datos reales. Las migraciones que transforman datos se escriben a mano y se prueban antes sobre una copia.
+
+## Más detalle
+
+`CLAUDE.md` tiene:
+- la arquitectura completa (API, páginas, auth, fotos, cuotas);
+- las decisiones de diseño y su porqué;
+- las convenciones del proyecto;
+- los problemas conocidos;
+- el backlog de pendientes.
