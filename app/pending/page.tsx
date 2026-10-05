@@ -6,7 +6,7 @@ import Link from "next/link";
 import CaptureButton from "@/components/CaptureButton";
 import PhotoViewer from "@/components/PhotoViewer";
 import type { PendingExpense } from "@/lib/expenses";
-import { formatMoney } from "@/lib/format";
+import { formatAmount } from "@/lib/format";
 import { notifyPendingChanged } from "@/lib/usePendingCount";
 
 const capturedAt = (iso: string) =>
@@ -58,7 +58,7 @@ export default function PendingPage() {
               <div className="h-20 w-20 shrink-0 rounded bg-input flex items-center justify-center text-2xl">📝</div>
             )}
             <div className="min-w-0 flex-1 flex flex-col">
-              <span className="font-semibold">{item.amount ? `$${formatMoney(item.amount)}` : "Sin monto"}</span>
+              <span className="font-semibold">{item.amount ? formatAmount(item.amount) : "Sin monto"}</span>
               {item.note && <span className="text-sm truncate">{item.note}</span>}
               <span className="text-xs text-gray-500">{capturedAt(item.createdAt)}</span>
               <div className="mt-auto flex gap-4 pt-1 text-sm">

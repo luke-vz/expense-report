@@ -6,7 +6,15 @@ import { useEffect, useState } from "react";
 import CaptureButton from "@/components/CaptureButton";
 import type { Expense } from "@/lib/expenses";
 import { usePendingCount } from "@/lib/usePendingCount";
-import { currentMonthKey, formatDate, formatMoney, monthKey } from "@/lib/format";
+import { currentMonthKey, expenseTitle, formatAmount, formatDate, monthKey, todayISO } from "@/lib/format";
+
+/** { ARS: 1500, USD: 20 } — totals are never mixed across currencies */
+const totalsByCurrency = (list: Expense[]) =>
+  list.reduce<Record<string, number>>((acc, exp) => {
+    const currency = exp.currency ?? "ARS";
+    acc[currency] = (acc[currency] ?? 0) + exp.amount;
+    return acc;
+  }, {});
 
 export default function HomePage() {
   const [expenses, setExpenses] = useState<Expense[] | null>(null);
@@ -23,18 +31,33 @@ export default function HomePage() {
   const month = currentMonthKey();
   const monthName = new Date(`${month}-01T12:00:00`).toLocaleString("es-AR", { month: "long", year: "numeric" });
   const monthExpenses = (expenses ?? []).filter((exp) => monthKey(exp.date) === month);
-  const monthlyTotal = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-  // The API returns expenses newest first
-  const latest = (expenses ?? []).slice(0, 5);
+  const monthlyTotals = totalsByCurrency(monthExpenses);
+  const today = todayISO();
+  // The API returns newest first, which puts future installments on top: skip those
+  const latest = (expenses ?? []).filter((exp) => exp.date.slice(0, 10) <= today).slice(0, 5);
+  // Installments still to be paid after this month
+  const committed = (expenses ?? []).filter((exp) => exp.installmentGroupId && monthKey(exp.date) > month);
+  const committedTotals = totalsByCurrency(committed);
 
   return (
     <div className="max-w-xl mx-auto px-4 py-6 space-y-6">
       <section className="bg-secundario border-card rounded-md p-5">
         <h2 className="text-sm text-gray-400">Total de {monthName}</h2>
-        <p className="mt-1 text-4xl font-bold">${formatMoney(monthlyTotal)}</p>
+        <p className="mt-1 text-4xl font-bold">{formatAmount(monthlyTotals.ARS ?? 0)}</p>
+        {monthlyTotals.USD !== undefined && (
+          <p className="text-2xl font-bold text-gray-300">{formatAmount(monthlyTotals.USD, "USD")}</p>
+        )}
         <p className="mt-1 text-sm text-gray-500">
           {expenses === null ? "Cargando..." : `${monthExpenses.length} gastos`}
         </p>
+        {committed.length > 0 && (
+          <p className="mt-3 border-t border-[#3c3c3c] pt-3 text-sm text-gray-400">
+            Cuotas a futuro:{" "}
+            {Object.entries(committedTotals)
+              .map(([currency, total]) => formatAmount(total, currency))
+              .join(" + ")}
+          </p>
+        )}
       </section>
 
       {pendingCount > 0 && (
@@ -73,12 +96,12 @@ export default function HomePage() {
             <li key={exp.id}>
               <Link href={`/expenses/${exp.id}/edit`} className="flex items-center justify-between gap-3 p-3">
                 <span className="min-w-0">
-                  <span className="block truncate">{exp.title}</span>
+                  <span className="block truncate">{expenseTitle(exp)}</span>
                   <span className="block text-xs text-gray-500">
                     {exp.category.name} · {formatDate(exp.date)}
                   </span>
                 </span>
-                <span className="shrink-0 font-semibold">${formatMoney(exp.amount)}</span>
+                <span className="shrink-0 font-semibold">{formatAmount(exp.amount, exp.currency)}</span>
               </Link>
             </li>
           ))}

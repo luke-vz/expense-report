@@ -25,8 +25,16 @@ model Expense {
   note       String?
   receiptUrl String?
 
+  // Purchases in installments ("cuotas") become one Expense per month sharing a group id.
+  // The title is stored without the "2/6" suffix; the UI adds it from these fields.
+  installmentGroupId String?
+  installmentNumber  Int?
+  installmentCount   Int?
+
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@index([installmentGroupId])
 }
 
 // "Pre-gasto": captured quickly (usually a photo), completed later into an Expense.

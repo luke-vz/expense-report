@@ -5,20 +5,24 @@ import { useState } from "react";
 import Link from "next/link";
 import PhotoViewer from "@/components/PhotoViewer";
 import { useCategories } from "@/lib/useCategories";
-import { daysAgoISO, parseAmount } from "@/lib/format";
+import { daysAgoISO, formatAmount, monthKey, monthLabel, parseAmount } from "@/lib/format";
+import { MAX_INSTALLMENTS, addMonths, splitAmount } from "@/lib/installments";
 
 export interface ExpenseFormValues {
   title: string; // optional: empty means "use the category name"
   amount: string; // as typed, e.g. "1.500,50" — parse with parseAmount
   categoryId: string;
   date: string; // "YYYY-MM-DD"
+  currency: string; // "ARS" | "USD"
 }
 
 export interface ExpenseSubmit {
   title: string;
-  amount: number;
+  amount: number; // with installments: the total of the purchase
   categoryId: string;
   date: string;
+  currency: string;
+  installments?: number;
 }
 
 interface ExpenseFormProps {
@@ -28,6 +32,8 @@ interface ExpenseFormProps {
   /** Shows a second "Guardar y otro" button that calls onSubmit with another = true. */
   allowAnother?: boolean;
   autoFocusAmount?: boolean;
+  /** Shows the "Cuotas" picker (new expenses only: an existing installment is edited on its own). */
+  allowInstallments?: boolean;
   /** Receipt photo shown above the amount (completing a pending expense, or editing one). */
   photoUrl?: string | null;
   /** Returns an error message to show, or nothing on success. */
@@ -42,6 +48,7 @@ export default function ExpenseForm({
   submitLabel,
   allowAnother = false,
   autoFocusAmount = false,
+  allowInstallments = false,
   photoUrl,
   onSubmit,
 }: ExpenseFormProps) {
@@ -49,6 +56,7 @@ export default function ExpenseForm({
   const [form, setForm] = useState(initialValues);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [installments, setInstallments] = useState(1);
 
   const today = daysAgoISO(0);
   const yesterday = daysAgoISO(1);
@@ -77,15 +85,34 @@ export default function ExpenseForm({
       setError("Elegí una fecha.");
       return;
     }
+    if (!Number.isInteger(installments) || installments < 1 || installments > MAX_INSTALLMENTS) {
+      setError(`Las cuotas tienen que ser entre 2 y ${MAX_INSTALLMENTS}.`);
+      return;
+    }
 
     setSaving(true);
     const submitError = await onSubmit(
-      { title: form.title.trim() || category.name, amount, categoryId: category.id, date: form.date },
+      {
+        title: form.title.trim() || category.name,
+        amount,
+        categoryId: category.id,
+        date: form.date,
+        currency: form.currency,
+        ...(installments > 1 ? { installments } : {}),
+      },
       another
     );
     setSaving(false);
     setError(submitError ?? "");
   };
+
+  const parsedAmount = parseAmount(form.amount);
+  const installmentPreview =
+    installments > 1 && parsedAmount > 0 && form.date
+      ? `${installments} cuotas de ${formatAmount(splitAmount(parsedAmount, installments)[0], form.currency)} · la última en ${monthLabel(
+          monthKey(addMonths(form.date, installments - 1))
+        )}`
+      : null;
 
   const chip = (selected: boolean) =>
     `px-4 py-2 rounded-full border text-sm transition-colors ${
@@ -118,7 +145,7 @@ export default function ExpenseForm({
       <label className="block text-center">
         <span className="sr-only">Monto</span>
         <span className="flex items-baseline justify-center gap-1">
-          <span className="text-3xl text-gray-500">$</span>
+          <span className="text-3xl text-gray-500">{form.currency === "USD" ? "US$" : "$"}</span>
           <input
             type="text"
             inputMode="decimal"
@@ -133,6 +160,20 @@ export default function ExpenseForm({
           />
         </span>
       </label>
+
+      <div className="mt-3 flex justify-center gap-2" role="group" aria-label="Moneda">
+        {["ARS", "USD"].map((currency) => (
+          <button
+            key={currency}
+            type="button"
+            onClick={() => set("currency", currency)}
+            aria-pressed={form.currency === currency}
+            className={`${chip(form.currency === currency)} !py-1`}
+          >
+            {currency}
+          </button>
+        ))}
+      </div>
 
       <fieldset className="mt-8">
         <legend className="text-sm text-gray-400 mb-2">Categoría</legend>
@@ -182,6 +223,40 @@ export default function ExpenseForm({
           />
         </div>
       </fieldset>
+
+      {allowInstallments && (
+        <fieldset className="mt-6">
+          <legend className="text-sm text-gray-400 mb-2">Cuotas</legend>
+          <div className="flex flex-wrap items-center gap-2">
+            {[1, 3, 6, 12].map((n) => (
+              <button key={n} type="button" onClick={() => setInstallments(n)} className={chip(installments === n)}>
+                {n === 1 ? "Sin cuotas" : n}
+              </button>
+            ))}
+            <input
+              type="number"
+              inputMode="numeric"
+              min={2}
+              max={MAX_INSTALLMENTS}
+              aria-label="Otra cantidad de cuotas"
+              placeholder="Otra"
+              value={[1, 3, 6, 12].includes(installments) ? "" : installments}
+              onChange={(e) => {
+                setInstallments(e.target.value ? Number(e.target.value) : 1);
+                setError("");
+              }}
+              className={`bg-input w-20 rounded-full px-4 py-2 text-sm ${
+                ![1, 3, 6, 12].includes(installments) ? "ring-2 ring-[#3987e5]" : ""
+              }`}
+            />
+          </div>
+          {installments > 1 && (
+            <p className="mt-2 text-sm text-gray-400">
+              {installmentPreview ?? "Ingresá el monto total de la compra (con interés incluido)."}
+            </p>
+          )}
+        </fieldset>
+      )}
 
       <div className="fixed bottom-0 inset-x-0 z-40 flex gap-3 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-[#121212] border-t border-[#2b2b2b] md:static md:mt-8 md:p-0 md:border-0 md:bg-transparent">
         <button

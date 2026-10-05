@@ -1,5 +1,7 @@
 import { Prisma } from "@prisma/client";
 
+export const CURRENCIES = ["ARS", "USD"];
+
 // Largest value that fits in Decimal(12,2)
 const MAX_AMOUNT = 9_999_999_999.99;
 
@@ -62,7 +64,7 @@ export function parseExpenseInput(body: unknown, { partial = false } = {}): Resu
   }
 
   if (b.currency !== undefined) {
-    if (typeof b.currency !== "string" || !/^[A-Z]{3}$/.test(b.currency)) return { error: "Invalid currency" };
+    if (typeof b.currency !== "string" || !CURRENCIES.includes(b.currency)) return { error: "Invalid currency" };
     data.currency = b.currency;
   }
 

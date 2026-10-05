@@ -51,6 +51,16 @@ export function formatMoney(amount: number): string {
   return amount.toLocaleString("en-us", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+/** Amount with its currency sign: "$1,500.00" (ARS) or "US$ 15.99" (USD). */
+export function formatAmount(amount: number, currency = "ARS"): string {
+  return currency === "USD" ? `US$ ${formatMoney(amount)}` : `$${formatMoney(amount)}`;
+}
+
+/** "Heladera" + installment 2 of 6 -> "Heladera 2/6". */
+export function expenseTitle(e: { title: string; installmentNumber?: number | null; installmentCount?: number | null }) {
+  return e.installmentNumber && e.installmentCount ? `${e.title} ${e.installmentNumber}/${e.installmentCount}` : e.title;
+}
+
 /**
  * Parses an amount as typed on an Argentine keyboard. A comma is the decimal separator
  * and dots are thousands separators ("1.500,50" -> 1500.5). Without a comma, a dot is

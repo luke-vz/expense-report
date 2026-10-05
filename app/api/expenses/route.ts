@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { serializeExpense } from "@/lib/serialize";
 import { parseExpenseInput } from "@/lib/validation";
 import { photoUrl } from "@/lib/photos";
+import { MAX_INSTALLMENTS, addMonths, splitAmount } from "@/lib/installments";
+import { randomUUID } from "node:crypto";
 
 export interface ExpenseFilter {
   categoryId?: string;
@@ -47,6 +49,15 @@ export async function POST(req: NextRequest) {
   // entry is removed in the same transaction
   const pendingId = typeof body?.pendingId === "string" ? body.pendingId : null;
 
+  // installments >= 2: the amount is the total; one expense per month is created
+  const installments = body?.installments ?? 1;
+  if (!Number.isInteger(installments) || installments < 1 || installments > MAX_INSTALLMENTS) {
+    return NextResponse.json({ error: `Invalid installments: 1 to ${MAX_INSTALLMENTS}` }, { status: 400 });
+  }
+  if (Math.round(data.amount!.toNumber() * 100) < installments) {
+    return NextResponse.json({ error: "Amount too small for that many installments" }, { status: 400 });
+  }
+
   try {
     const expense = await prisma.$transaction(async (tx) => {
       let receiptUrl = data.receiptUrl;
@@ -54,10 +65,34 @@ export async function POST(req: NextRequest) {
         const pending = await tx.pendingExpense.delete({ where: { id: pendingId } });
         if (pending.photoKey) receiptUrl = photoUrl(pending.photoKey);
       }
-      return tx.expense.create({
-        data: { ...data, receiptUrl } as Prisma.ExpenseUncheckedCreateInput,
-        include: { category: true },
-      });
+      if (installments === 1) {
+        return tx.expense.create({
+          data: { ...data, receiptUrl } as Prisma.ExpenseUncheckedCreateInput,
+          include: { category: true },
+        });
+      }
+
+      const groupId = randomUUID();
+      const firstDay = data.date!.toISOString().slice(0, 10);
+      const amounts = splitAmount(data.amount!.toNumber(), installments);
+      const created = [];
+      for (let i = 0; i < installments; i++) {
+        created.push(
+          await tx.expense.create({
+            data: {
+              ...data,
+              receiptUrl,
+              amount: new Prisma.Decimal(amounts[i].toFixed(2)),
+              date: new Date(addMonths(firstDay, i)),
+              installmentGroupId: groupId,
+              installmentNumber: i + 1,
+              installmentCount: installments,
+            } as Prisma.ExpenseUncheckedCreateInput,
+            include: { category: true },
+          })
+        );
+      }
+      return created[0];
     });
     return NextResponse.json(serializeExpense(expense));
   } catch {
