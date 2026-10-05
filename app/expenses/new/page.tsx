@@ -53,7 +53,7 @@ function NewExpense() {
     const saved = await uploadPending(draft);
     if (!saved) return "No se pudo guardar el pendiente.";
     notifyPendingChanged();
-    setLastSaved({ id: saved.id, label: "en pendientes", kind: "pending" });
+    setLastSaved({ id: saved.id, label: "", kind: "pending" });
     setFormKey((k) => k + 1);
   };
 
@@ -139,7 +139,9 @@ function NewExpense() {
           role="status"
           className="fixed inset-x-4 bottom-28 z-50 mx-auto max-w-md flex items-center justify-between gap-3 rounded-md bg-[#2b2b2b] border-card px-4 py-3 shadow-lg md:bottom-8"
         >
-          <span className="text-sm truncate">Guardado: {lastSaved.label}</span>
+          <span className="text-sm truncate">
+            {lastSaved.kind === "pending" ? "Guardado en pendientes" : `Guardado: ${lastSaved.label}`}
+          </span>
           <button onClick={undo} className="text-[#3987e5] font-semibold text-sm shrink-0">
             Deshacer
           </button>
