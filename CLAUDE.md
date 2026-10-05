@@ -10,7 +10,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 
 ## Estado actual
 
-**En curso — "etapa 1" (fundamentos), commiteada en `develop` (3ad7f74), SIN PUSHEAR ni mergear a `main`:**
+**En curso — "etapa 1" (fundamentos), pusheada en `develop` (3ad7f74), SIN mergear a `main`:**
 - `Category` pasó a ser una tabla (antes era un string con listas hardcodeadas distintas en cada página); página `/categories` para gestionarlas.
 - `amount` pasó de `Float` a `Decimal(12,2)`; `date` pasó de timestamp a `DATE`.
 - Helpers de fecha/monto en `lib/format.ts`, serialización en `lib/serialize.ts`, hook `lib/useCategories.ts`.
@@ -79,6 +79,7 @@ npx prisma migrate dev
 ## Gotchas
 
 - **Cliente de Prisma viejo en dev:** `lib/prisma.ts` cachea el cliente en `global`. Después de `prisma generate`/`migrate dev` hay que **reiniciar `npm run dev`**; si no, aparecen `PrismaClientValidationError` o `Cannot read properties of undefined (reading 'findMany')`.
+- **Vercel bloquea el deploy con versiones vulnerables de Next**: el build termina bien pero el deploy falla con `Vulnerable version of Next.js detected`. Se ve con `npx vercel inspect <deployment> --logs` (el CLI está logueado en esta máquina). Se resolvió subiendo Next a la última 15.5.x; ante un nuevo bloqueo, revisar `npm audit` y subir el patch. Quedan avisos de `postcss` (dentro de Next, solo se arregla con Next 16) y `deepmerge-ts`.
 - **`params` es una Promise** en los route handlers de Next 15: tiparlo `{ params: Promise<{ id: string }> }` y hacer `await`.
 - **Fechas:** ver Decisiones. Para el valor por defecto de un `<input type="date">` usar `todayISO()`, no `toISOString()` (de noche da la fecha de mañana).
 - **Tailwind:** v4 vía `@import "tailwindcss"` en `globals.css`. `tailwind.config.js` es de v3 y no está referenciado (no hay `@config`), así que sus colores y `darkMode: 'class'` no se aplican; las clases `dark:` no hacen nada.
