@@ -10,19 +10,13 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 
 ## Estado actual
 
-**En curso — "etapa 1" (fundamentos), pusheada en `develop` (3ad7f74), SIN mergear a `main`:**
-- `Category` pasó a ser una tabla (antes era un string con listas hardcodeadas distintas en cada página); página `/categories` para gestionarlas.
-- `amount` pasó de `Float` a `Decimal(12,2)`; `date` pasó de timestamp a `DATE`.
-- Helpers de fecha/monto en `lib/format.ts`, serialización en `lib/serialize.ts`, hook `lib/useCategories.ts`.
-- Handlers de `[id]` con `await params`; la edición pide el gasto por id y muestra el error de guardado sin perder el formulario.
-- Migración `prisma/migrations/20260926033501_categories_decimal_date/` — **editada a mano** para migrar datos (ver Decisiones).
-- Verificado: `tsc` y `eslint` limpios; API probada end-to-end contra la base local; migración probada sobre datos con el formato viejo.
+**Etapa 1 (fundamentos) en producción desde 2026-10-05** (PR #6): categorías en tabla con página `/categories`, `amount` como `Decimal(12,2)`, `date` como `DATE`, helpers en `lib/format.ts`, migraciones automáticas en el build de producción.
 
-**Para llevarlo a producción:** PR de `develop` a `main` abierto. El build ahora corre `prisma migrate deploy` **solo cuando `VERCEL_ENV=production`**, después de `next build` (ver Decisiones). Al 2026-10-05 la base de producción **no tiene datos que conservar** (el usuario autorizó borrarla): el usuario va a correr `prisma migrate reset --force` contra prod antes de mergear. Claude no tiene acceso a las credenciales de prod; esos pasos los hace el usuario.
+**La base de producción TIENE DATOS REALES** (266 gastos al 2026-10-05) y no se puede resetear. La migración `categories_decimal_date` los conservó: las categorías que ya existían como texto (`Colegio`, `Entretenimiento`, `Tarjetas`) quedaron como categorías propias. Claude no tiene acceso a las credenciales de prod; cualquier operación directa sobre esa base la hace el usuario.
 
 **Riesgo conocido:** la app publicada no tiene login; la API responde a cualquiera. El usuario decidió **posponer el login** (no lo encares sin que lo pida).
 
-**Próximos pasos:** el usuario está revisando el backlog de abajo para priorizarlo; no arranques ítems nuevos sin que elija. Lo recomendado: (1) confirmar que la etapa 1 quedó andando en prod; (2) prolijidad rápida; (3) datos confiables: moneda ARS/USD, cuotas, dashboard mensual, clasificación fijo/variable/prescindible.
+**Próximos pasos:** el usuario está revisando el backlog de abajo para priorizarlo; no arranques ítems nuevos sin que elija. Lo recomendado: (1) prolijidad rápida, más poder unir categorías (en prod `Ocio` y `Entretenimiento` parecen duplicadas, y renombrar una como la otra falla por el nombre único); (3) datos confiables: moneda ARS/USD, cuotas, dashboard mensual, clasificación fijo/variable/prescindible.
 
 ### Backlog (sin priorizar por el usuario todavía)
 
