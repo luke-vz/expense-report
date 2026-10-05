@@ -28,7 +28,13 @@ export function monthLabel(key: string): string {
 
 /** Today's local date as "YYYY-MM-DD" (toISOString would give the UTC day). */
 export function todayISO(): string {
+  return daysAgoISO(0);
+}
+
+/** Local date `days` days ago as "YYYY-MM-DD". */
+export function daysAgoISO(days: number): string {
   const d = new Date();
+  d.setDate(d.getDate() - days);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
@@ -38,4 +44,30 @@ export function currentMonthKey(): string {
 
 export function formatMoney(amount: number): string {
   return amount.toLocaleString("en-us", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
+ * Parses an amount as typed on an Argentine keyboard. A comma is the decimal separator
+ * and dots are thousands separators ("1.500,50" -> 1500.5). Without a comma, a dot is
+ * read as thousands when followed by exactly three digits ("1.500" -> 1500) and as a
+ * decimal point otherwise ("12.5" -> 12.5). Returns NaN for anything else.
+ */
+export function parseAmount(input: string): number {
+  const s = input.trim().replace(/^\$\s*/, "");
+  if (!/^[\d.,]+$/.test(s)) return NaN;
+
+  let normalized: string;
+  if (s.includes(",")) {
+    normalized = s.replace(/\./g, "").replace(",", ".");
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(s)) {
+    normalized = s.replace(/\./g, "");
+  } else {
+    normalized = s;
+  }
+  return /^\d+(\.\d+)?$/.test(normalized) ? Number(normalized) : NaN;
+}
+
+/** 1500.5 -> "1500,5", for prefilling the amount input in the format parseAmount expects. */
+export function toAmountInput(amount: number): string {
+  return amount.toString().replace(".", ",");
 }

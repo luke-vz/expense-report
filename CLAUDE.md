@@ -22,8 +22,8 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 
 - **Deploy/datos:** la base de Preview no se migra sola (`DATABASE_URL` de Preview es una variable distinta de la de Production; no está confirmado si apuntan a la misma base); backups; sacar `log: ["query"]` de `lib/prisma.ts` en prod.
 - **Seguridad:** login (Auth.js + Google con allowlist de los dos mails — propuesta).
-- **Prolijidad:** formato de montos (`$1,500.00` vs `$1.500,00`, a decidir por el usuario); listado como tarjetas en el celular (hoy la tabla se desplaza en horizontal); no hay tests.
-- **Carga:** moneda ARS/USD con totales separados; compras en cuotas (cada cuota imputa a su mes); medio de pago; UI para `note` y foto de ticket (`receiptUrl` existe sin usar); gastos fijos/recurrentes con vencimiento; PWA/carga rápida; importar resúmenes de tarjeta/banco.
+- **Prolijidad:** listado como tarjetas agrupadas por día en el celular (hoy la tabla se desplaza en horizontal); no hay tests (`parseAmount` es buen candidato para empezar).
+- **Carga:** moneda ARS/USD con totales separados; compras en cuotas (cada cuota imputa a su mes); medio de pago; UI para `note` y foto de ticket (`receiptUrl` existe sin usar); gastos fijos/recurrentes con vencimiento; carga sin conexión (service worker + cola local); sugerencias al cargar (autocompletar detalle con categoría, gastos frecuentes como atajos); importar resúmenes de tarjeta/banco.
 - **Análisis:** dashboard por mes (ranking con %, vs mes anterior y promedio 3 meses, top gastos); categorías marcadas fijo/variable/prescindible; subcategorías o etiquetas; búsqueda; equivalente en USD por fecha (inflación).
 - **Ahorro:** ingresos y tasa de ahorro; presupuestos por categoría con alertas; metas de ahorro; exportar CSV/Excel.
 - **Pareja (requiere login):** quién cargó cada gasto. No hace falta balance entre ellos: es caja común.
@@ -36,6 +36,8 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 - **Migraciones con datos se escriben a mano.** `prisma migrate dev` genera `DROP COLUMN` + `ADD COLUMN NOT NULL`, que pierde datos y falla con tablas no vacías. Generar con `--create-only`, reescribir el SQL para hacer backfill (ver la migración `categories_decimal_date`), y probarlo sobre una base aparte con datos en el formato viejo antes de aplicarlo.
 - **Migraciones en el build, solo en producción y después de compilar** (`npm run build` → `prisma generate && next build && migrate:production`). Compilar primero hace que un build roto no toque la base; si `migrate deploy` falla, el deploy falla y producción sigue con la versión anterior. Las previews no migran para no tocar bases compartidas.
 - **Las categorías por defecto se siembran en la migración** (no hay seed script), así cualquier base nueva queda usable.
+- **Montos tipeados en formato argentino.** El input de monto es `type="text" inputMode="decimal"` (no `type="number"`, que según el teclado rechaza la coma) y se interpreta con `parseAmount` (`lib/format.ts`): coma = decimal, puntos = miles; sin coma, un punto seguido de exactamente 3 dígitos es de miles (`1.500` → 1500), si no es decimal (`12.5`). La API recibe siempre un número.
+- **Título opcional en la UI:** si queda vacío, el form manda el nombre de la categoría. La API sigue exigiendo `title` (el default lo pone el cliente).
 - **Dashboard con una sola serie por gráfico, un solo color** (`#3987e5`, validado contra el fondo de las tarjetas `#2b2b2b`). Con 9+ categorías una torta repite colores; el ranking en barras se lee por la etiqueta del eje y responde directo "dónde se va la plata".
 - **Filtrado y agregación en el cliente:** las páginas traen todos los gastos y filtran en el browser. Alcanza para el volumen de un hogar; no hace falta paginar por ahora.
 
@@ -44,10 +46,11 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 - Texto visible al usuario en castellano rioplatense (voseo: "Seleccioná", "¿Seguro que querés…?"). Identificadores de código en inglés.
 - Las páginas son client components (`"use client"`) que hacen `fetch` a `/api/...` en `useEffect`. Los tipos compartidos del cliente (`Expense`, `Category`) están en `lib/expenses.ts`; no redeclarar interfaces locales.
 - Handlers de API: validar a mano (sin zod; ver `lib/validation.ts`), leer el body con `req.json().catch(() => null)`, envolver escrituras de Prisma en `try/catch` y devolver `{ error }` con status. Mensajes de error de la API en inglés; los de la UI en castellano.
-- Formularios de gastos: siempre a través de `components/ExpenseForm.tsx`. Inputs de monto con `step="0.01"` (sin `step`, el navegador rechaza decimales).
-- Layouts pensados para el celular primero (se usa desde el teléfono): verificar a 390px de ancho.
+- Formularios de gastos: siempre a través de `components/ExpenseForm.tsx`; montos con `parseAmount`, y para precargar uno existente `toAmountInput`.
+- Layouts pensados para el celular primero (se usa desde el teléfono): verificar a 390px de ancho. Botones de al menos ~44px de alto; el color de acción principal es `#3987e5`.
+- No anidar `<main>`: el layout ya lo pone; las páginas usan `<div>`.
 - Estilos: tema oscuro con las clases propias de `app/globals.css` (`bg-secundario`, `bg-input`, `bg-boton`, `border-card`, `header-bg`); reusarlas.
-- Montos con `formatMoney`, fechas con `formatDate` / `monthKey` / `monthLabel` / `todayISO` (`lib/format.ts`).
+- Montos con `formatMoney` (formato `$1,500.00`; el usuario decidió mantenerlo así, no proponer `$1.500,00`), fechas con `formatDate` / `monthKey` / `monthLabel` / `todayISO` (`lib/format.ts`).
 - Git: se trabaja en `develop` y se mergea a `main` por PR. Vercel despliega `main` a **Production** y los pushes a `develop` como **Preview**. Mensajes de commit cortos, en inglés, en minúscula.
 
 ## Comandos
@@ -82,4 +85,4 @@ npx prisma migrate dev
 - **Fechas:** ver Decisiones. Para el valor por defecto de un `<input type="date">` usar `todayISO()`, no `toISOString()` (de noche da la fecha de mañana).
 - **Tailwind:** v4 vía `@import "tailwindcss"` en `app/globals.css`; no hay `tailwind.config.js` ni modo claro. Las clases propias de `globals.css` no admiten variantes (`hover:bg-secundario` no funciona): para hover usar utilidades de Tailwind (p. ej. `hover:bg-neutral-800`).
 - **`npm run build` con `npm run dev` corriendo** pisa `.next` y el dev server empieza a dar 500. Reiniciarlo con `rm -rf .next && npm run dev -- -p 3100`.
-- **Capturas del dashboard:** Recharts anima las barras al entrar; una captura headless instantánea las muestra vacías. Esperar ~2s (Playwright con `executablePath: "/usr/bin/chromium-browser"`).
+- **Probar en "celular":** Playwright con `executablePath: "/usr/bin/chromium-browser"` (la versión de navegador de Playwright no está instalada), viewport 390×844, `isMobile` y `hasTouch`. Recharts anima las barras al entrar: esperar ~2s antes de capturar el dashboard.
