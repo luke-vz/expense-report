@@ -10,25 +10,19 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 
 ## Estado actual
 
-**En curso — "etapa 1" (fundamentos), pusheada en `develop` (3ad7f74), SIN mergear a `main`:**
-- `Category` pasó a ser una tabla (antes era un string con listas hardcodeadas distintas en cada página); página `/categories` para gestionarlas.
-- `amount` pasó de `Float` a `Decimal(12,2)`; `date` pasó de timestamp a `DATE`.
-- Helpers de fecha/monto en `lib/format.ts`, serialización en `lib/serialize.ts`, hook `lib/useCategories.ts`.
-- Handlers de `[id]` con `await params`; la edición pide el gasto por id y muestra el error de guardado sin perder el formulario.
-- Migración `prisma/migrations/20260926033501_categories_decimal_date/` — **editada a mano** para migrar datos (ver Decisiones).
-- Verificado: `tsc` y `eslint` limpios; API probada end-to-end contra la base local; migración probada sobre datos con el formato viejo.
+**Etapa 1 (fundamentos) en producción desde 2026-10-05** (PR #6): categorías en tabla con página `/categories`, `amount` como `Decimal(12,2)`, `date` como `DATE`, helpers en `lib/format.ts`, migraciones automáticas en el build de producción.
 
-**Para llevarlo a producción:** PR de `develop` a `main` abierto. El build ahora corre `prisma migrate deploy` **solo cuando `VERCEL_ENV=production`**, después de `next build` (ver Decisiones). Al 2026-10-05 la base de producción **no tiene datos que conservar** (el usuario autorizó borrarla): el usuario va a correr `prisma migrate reset --force` contra prod antes de mergear. Claude no tiene acceso a las credenciales de prod; esos pasos los hace el usuario.
+**La base de producción TIENE DATOS REALES** (266 gastos al 2026-10-05) y no se puede resetear. La migración `categories_decimal_date` los conservó: las categorías que ya existían como texto (`Colegio`, `Entretenimiento`, `Tarjetas`) quedaron como categorías propias. Claude no tiene acceso a las credenciales de prod; cualquier operación directa sobre esa base la hace el usuario.
 
 **Riesgo conocido:** la app publicada no tiene login; la API responde a cualquiera. El usuario decidió **posponer el login** (no lo encares sin que lo pida).
 
-**Próximos pasos:** el usuario está revisando el backlog de abajo para priorizarlo; no arranques ítems nuevos sin que elija. Lo recomendado: (1) confirmar que la etapa 1 quedó andando en prod; (2) prolijidad rápida; (3) datos confiables: moneda ARS/USD, cuotas, dashboard mensual, clasificación fijo/variable/prescindible.
+**Próximos pasos:** el usuario está revisando el backlog de abajo para priorizarlo; no arranques ítems nuevos sin que elija. Lo recomendado: datos confiables: moneda ARS/USD, cuotas, dashboard mensual, clasificación fijo/variable/prescindible.
 
 ### Backlog (sin priorizar por el usuario todavía)
 
 - **Deploy/datos:** la base de Preview no se migra sola (`DATABASE_URL` de Preview es una variable distinta de la de Production; no está confirmado si apuntan a la misma base); backups; sacar `log: ["query"]` de `lib/prisma.ts` en prod.
-- **Seguridad:** login (Auth.js + Google con allowlist de los dos mails — propuesta); validar input de la API (montos ≤ 0, fechas inválidas dan 500).
-- **Prolijidad:** la página de edición usa fondo blanco (no respeta el tema oscuro); unificar formularios de alta/edición; borrar o reutilizar componentes sin usar; Tailwind config v3 que no se aplica; borrar un gasto no chequea `res.ok`; poco contraste en el menú; formato de montos (`$1,500.00` vs `$1.500,00`, a decidir); etiquetas y colores del dashboard (solo 4 colores); `app/OLDfavicon.ico` y SVGs de ejemplo; no hay tests.
+- **Seguridad:** login (Auth.js + Google con allowlist de los dos mails — propuesta).
+- **Prolijidad:** formato de montos (`$1,500.00` vs `$1.500,00`, a decidir por el usuario); listado como tarjetas en el celular (hoy la tabla se desplaza en horizontal); no hay tests.
 - **Carga:** moneda ARS/USD con totales separados; compras en cuotas (cada cuota imputa a su mes); medio de pago; UI para `note` y foto de ticket (`receiptUrl` existe sin usar); gastos fijos/recurrentes con vencimiento; PWA/carga rápida; importar resúmenes de tarjeta/banco.
 - **Análisis:** dashboard por mes (ranking con %, vs mes anterior y promedio 3 meses, top gastos); categorías marcadas fijo/variable/prescindible; subcategorías o etiquetas; búsqueda; equivalente en USD por fecha (inflación).
 - **Ahorro:** ingresos y tasa de ahorro; presupuestos por categoría con alertas; metas de ahorro; exportar CSV/Excel.
@@ -42,13 +36,16 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 - **Migraciones con datos se escriben a mano.** `prisma migrate dev` genera `DROP COLUMN` + `ADD COLUMN NOT NULL`, que pierde datos y falla con tablas no vacías. Generar con `--create-only`, reescribir el SQL para hacer backfill (ver la migración `categories_decimal_date`), y probarlo sobre una base aparte con datos en el formato viejo antes de aplicarlo.
 - **Migraciones en el build, solo en producción y después de compilar** (`npm run build` → `prisma generate && next build && migrate:production`). Compilar primero hace que un build roto no toque la base; si `migrate deploy` falla, el deploy falla y producción sigue con la versión anterior. Las previews no migran para no tocar bases compartidas.
 - **Las categorías por defecto se siembran en la migración** (no hay seed script), así cualquier base nueva queda usable.
+- **Dashboard con una sola serie por gráfico, un solo color** (`#3987e5`, validado contra el fondo de las tarjetas `#2b2b2b`). Con 9+ categorías una torta repite colores; el ranking en barras se lee por la etiqueta del eje y responde directo "dónde se va la plata".
 - **Filtrado y agregación en el cliente:** las páginas traen todos los gastos y filtran en el browser. Alcanza para el volumen de un hogar; no hace falta paginar por ahora.
 
 ## Convenciones
 
 - Texto visible al usuario en castellano rioplatense (voseo: "Seleccioná", "¿Seguro que querés…?"). Identificadores de código en inglés.
 - Las páginas son client components (`"use client"`) que hacen `fetch` a `/api/...` en `useEffect`. Los tipos compartidos del cliente (`Expense`, `Category`) están en `lib/expenses.ts`; no redeclarar interfaces locales.
-- Handlers de API: validar campos requeridos a mano, envolver escrituras de Prisma en `try/catch` y devolver `{ error }` con status.
+- Handlers de API: validar a mano (sin zod; ver `lib/validation.ts`), leer el body con `req.json().catch(() => null)`, envolver escrituras de Prisma en `try/catch` y devolver `{ error }` con status. Mensajes de error de la API en inglés; los de la UI en castellano.
+- Formularios de gastos: siempre a través de `components/ExpenseForm.tsx`. Inputs de monto con `step="0.01"` (sin `step`, el navegador rechaza decimales).
+- Layouts pensados para el celular primero (se usa desde el teléfono): verificar a 390px de ancho.
 - Estilos: tema oscuro con las clases propias de `app/globals.css` (`bg-secundario`, `bg-input`, `bg-boton`, `border-card`, `header-bg`); reusarlas.
 - Montos con `formatMoney`, fechas con `formatDate` / `monthKey` / `monthLabel` / `todayISO` (`lib/format.ts`).
 - Git: se trabaja en `develop` y se mergea a `main` por PR. Vercel despliega `main` a **Production** y los pushes a `develop` como **Preview**. Mensajes de commit cortos, en inglés, en minúscula.
@@ -83,5 +80,6 @@ npx prisma migrate dev
 - **Vercel bloquea el deploy con versiones vulnerables de Next**: el build termina bien pero el deploy falla con `Vulnerable version of Next.js detected`. Se ve con `npx vercel inspect <deployment> --logs` (el CLI está logueado en esta máquina). Se resolvió subiendo Next a la última 15.5.x; ante un nuevo bloqueo, revisar `npm audit` y subir el patch. Quedan avisos de `postcss` (dentro de Next, solo se arregla con Next 16) y `deepmerge-ts`.
 - **`params` es una Promise** en los route handlers de Next 15: tiparlo `{ params: Promise<{ id: string }> }` y hacer `await`.
 - **Fechas:** ver Decisiones. Para el valor por defecto de un `<input type="date">` usar `todayISO()`, no `toISOString()` (de noche da la fecha de mañana).
-- **Tailwind:** v4 vía `@import "tailwindcss"` en `globals.css`. `tailwind.config.js` es de v3 y no está referenciado (no hay `@config`), así que sus colores y `darkMode: 'class'` no se aplican; las clases `dark:` no hacen nada.
-- **Código sin usar** (verificar antes de asumir que está en uso): helpers de fetch de `lib/expenses.ts` (solo se usan sus tipos), `components/ExpenseForm.tsx`, `ExpenseFilters.tsx` (estos dos con categorías hardcodeadas viejas), `ChartSummary.tsx`, `DarkModeToggle.tsx`.
+- **Tailwind:** v4 vía `@import "tailwindcss"` en `app/globals.css`; no hay `tailwind.config.js` ni modo claro. Las clases propias de `globals.css` no admiten variantes (`hover:bg-secundario` no funciona): para hover usar utilidades de Tailwind (p. ej. `hover:bg-neutral-800`).
+- **`npm run build` con `npm run dev` corriendo** pisa `.next` y el dev server empieza a dar 500. Reiniciarlo con `rm -rf .next && npm run dev -- -p 3100`.
+- **Capturas del dashboard:** Recharts anima las barras al entrar; una captura headless instantánea las muestra vacías. Esperar ~2s (Playwright con `executablePath: "/usr/bin/chromium-browser"`).

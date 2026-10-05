@@ -40,7 +40,7 @@ export default function ExpensesPage() {
       </div>
 
       {/* Filtros */}
-      <div className="flex gap-4 mb-6">
+      <div className="flex flex-wrap gap-4 mb-6">
         <select
           value={categoryId}
           onChange={(e) => setCategoryId(e.target.value)}
@@ -61,8 +61,8 @@ export default function ExpensesPage() {
       </div>
 
       {/* Listado */}
-      <div className="bg-secundario shadow rounded-md overflow-hidden border-card">
-        <table className="w-full text-sm">
+      <div className="bg-secundario shadow rounded-md overflow-x-auto border-card">
+        <table className="w-full text-sm whitespace-nowrap">
           <thead className=" text-left">
             <tr>
               <th className="p-3">Título</th>
@@ -90,7 +90,11 @@ export default function ExpensesPage() {
                         <button
                             onClick={async () => {
                             if (!confirm("¿Seguro que querés eliminar este gasto?")) return;
-                            await fetch(`/api/expenses/${exp.id}`, { method: "DELETE" });
+                            const res = await fetch(`/api/expenses/${exp.id}`, { method: "DELETE" });
+                            if (!res.ok) {
+                              alert("No se pudo eliminar el gasto.");
+                              return;
+                            }
                             setExpenses(expenses.filter((e) => e.id !== exp.id));
                             }}
                             className="text-red-400 hover:underline"
