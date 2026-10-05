@@ -22,7 +22,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 
 - **Deploy/datos:** la base de Preview no se migra sola (`DATABASE_URL` de Preview es una variable distinta de la de Production; no está confirmado si apuntan a la misma base); backups; sacar `log: ["query"]` de `lib/prisma.ts` en prod.
 - **Seguridad:** login (Auth.js + Google con allowlist de los dos mails — propuesta).
-- **Prolijidad:** formato de montos (`$1,500.00` vs `$1.500,00`, a decidir por el usuario); listado como tarjetas en el celular (hoy la tabla se desplaza en horizontal); no hay tests.
+- **Prolijidad:** listado como tarjetas en el celular (hoy la tabla se desplaza en horizontal); no hay tests.
 - **Carga:** moneda ARS/USD con totales separados; compras en cuotas (cada cuota imputa a su mes); medio de pago; UI para `note` y foto de ticket (`receiptUrl` existe sin usar); gastos fijos/recurrentes con vencimiento; PWA/carga rápida; importar resúmenes de tarjeta/banco.
 - **Análisis:** dashboard por mes (ranking con %, vs mes anterior y promedio 3 meses, top gastos); categorías marcadas fijo/variable/prescindible; subcategorías o etiquetas; búsqueda; equivalente en USD por fecha (inflación).
 - **Ahorro:** ingresos y tasa de ahorro; presupuestos por categoría con alertas; metas de ahorro; exportar CSV/Excel.
@@ -47,7 +47,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 - Formularios de gastos: siempre a través de `components/ExpenseForm.tsx`. Inputs de monto con `step="0.01"` (sin `step`, el navegador rechaza decimales).
 - Layouts pensados para el celular primero (se usa desde el teléfono): verificar a 390px de ancho.
 - Estilos: tema oscuro con las clases propias de `app/globals.css` (`bg-secundario`, `bg-input`, `bg-boton`, `border-card`, `header-bg`); reusarlas.
-- Montos con `formatMoney`, fechas con `formatDate` / `monthKey` / `monthLabel` / `todayISO` (`lib/format.ts`).
+- Montos con `formatMoney` (formato `$1,500.00`; el usuario decidió mantenerlo así, no proponer `$1.500,00`), fechas con `formatDate` / `monthKey` / `monthLabel` / `todayISO` (`lib/format.ts`).
 - Git: se trabaja en `develop` y se mergea a `main` por PR. Vercel despliega `main` a **Production** y los pushes a `develop` como **Preview**. Mensajes de commit cortos, en inglés, en minúscula.
 
 ## Comandos
