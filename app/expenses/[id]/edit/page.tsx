@@ -13,6 +13,7 @@ export default function EditExpensePage() {
 
   const [initialValues, setInitialValues] = useState<ExpenseFormValues | null>(null);
   const [loadError, setLoadError] = useState("");
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
   // Traemos el gasto existente
   useEffect(() => {
@@ -24,6 +25,7 @@ export default function EditExpensePage() {
           return;
         }
         const expense: Expense = await res.json();
+        setReceiptUrl(expense.receiptUrl ?? null);
         setInitialValues({
           title: expense.title,
           amount: toAmountInput(expense.amount),
@@ -57,6 +59,7 @@ export default function EditExpensePage() {
       <ExpenseForm
         heading="Editar gasto"
         initialValues={initialValues}
+        photoUrl={receiptUrl}
         submitLabel="Actualizar"
         onSubmit={updateExpense}
       />

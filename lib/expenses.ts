@@ -18,3 +18,12 @@ export interface Expense {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface PendingExpense {
+  id: string;
+  amount: number | null;
+  note: string | null;
+  photoUrl: string | null;
+  createdBy: string | null;
+  createdAt: string; // ISO timestamp of the capture
+}

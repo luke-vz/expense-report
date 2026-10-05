@@ -28,3 +28,14 @@ model Expense {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
+
+// "Pre-gasto": captured quickly (usually a photo), completed later into an Expense.
+// Kept apart from Expense so half-filled data never leaks into totals or charts.
+model PendingExpense {
+  id        String   @id @default(uuid())
+  photoKey  String?  // storage key, served through /api/photos/<key>
+  amount    Decimal? @db.Decimal(12, 2)
+  note      String?
+  createdBy String?  // email of the user who captured it
+  createdAt DateTime @default(now())
+}
