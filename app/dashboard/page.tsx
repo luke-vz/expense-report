@@ -5,7 +5,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LabelList,
 } from "recharts";
 import type { Expense } from "@/lib/expenses";
-import { formatMoney, monthKey, monthLabel } from "@/lib/format";
+import { formatAmount, monthKey, monthLabel } from "@/lib/format";
 
 interface CategoryData {
   category: string;
@@ -24,19 +24,23 @@ const AXIS_COLOR = "#9ca3af";
 const GRID_COLOR = "#3c3c3c";
 const BAR_HEIGHT = 36;
 
-const formatAxis = (value: number) =>
-  "$" + value.toLocaleString("en-us", { notation: "compact", maximumFractionDigits: 1 });
+const formatAxis = (currency: string) => (value: number) =>
+  (currency === "USD" ? "US$" : "$") + value.toLocaleString("en-us", { notation: "compact", maximumFractionDigits: 1 });
 
-const tooltipProps = {
-  formatter: (value: number) => [`$${formatMoney(value)}`, "Total"] as [string, string],
+const tooltipProps = (currency: string) => ({
+  formatter: (value: number) => [formatAmount(value, currency), "Total"] as [string, string],
   cursor: { fill: "rgba(255,255,255,0.05)" },
   contentStyle: { background: "#121212", border: "1px solid #616161", borderRadius: 6 },
   labelStyle: { color: "#d1d5db" },
   itemStyle: { color: "#d1d5db" },
-};
+});
 
 export default function DashboardPage() {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [allExpenses, setExpenses] = useState<Expense[]>([]);
+  // Amounts are never mixed across currencies: the charts show one at a time
+  const [currency, setCurrency] = useState("ARS");
+  const hasUsd = allExpenses.some((exp) => exp.currency === "USD");
+  const expenses = allExpenses.filter((exp) => (exp.currency ?? "ARS") === currency);
 
   useEffect(() => {
     const fetchExpenses = async () => {
@@ -72,14 +76,31 @@ export default function DashboardPage() {
 
   return (
     <div className="p-6 grid gap-8 grid-cols-1 md:grid-cols-2">
+      {hasUsd && (
+        <div className="md:col-span-2 flex gap-2" role="tablist" aria-label="Moneda">
+          {["ARS", "USD"].map((c) => (
+            <button
+              key={c}
+              role="tab"
+              aria-selected={currency === c}
+              onClick={() => setCurrency(c)}
+              className={`px-4 py-1 rounded-full border text-sm ${
+                currency === c ? "bg-[#3987e5] border-[#3987e5] text-white" : "border-[#616161] text-gray-300"
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="border-card bg-secundario shadow rounded-md p-4">
         <h2 className="text-lg font-semibold mb-4">Gastos por categoría</h2>
         <ResponsiveContainer width="100%" height={Math.max(byCategory.length * BAR_HEIGHT, 120)}>
           <BarChart data={byCategory} layout="vertical" margin={{ left: 8, right: 48 }}>
             <CartesianGrid horizontal={false} stroke={GRID_COLOR} />
-            <XAxis type="number" tickFormatter={formatAxis} stroke={AXIS_COLOR} fontSize={12} />
+            <XAxis type="number" tickFormatter={formatAxis(currency)} stroke={AXIS_COLOR} fontSize={12} />
             <YAxis type="category" dataKey="category" width={110} stroke={AXIS_COLOR} fontSize={12} tickLine={false} />
-            <Tooltip {...tooltipProps} />
+            <Tooltip {...tooltipProps(currency)} />
             <Bar dataKey="amount" fill={BAR_COLOR} barSize={20} radius={[0, 4, 4, 0]}>
               <LabelList
                 dataKey="share"
@@ -99,8 +120,8 @@ export default function DashboardPage() {
           <BarChart data={byMonth}>
             <CartesianGrid vertical={false} stroke={GRID_COLOR} />
             <XAxis dataKey="month" stroke={AXIS_COLOR} fontSize={12} />
-            <YAxis tickFormatter={formatAxis} stroke={AXIS_COLOR} fontSize={12} width={56} />
-            <Tooltip {...tooltipProps} />
+            <YAxis tickFormatter={formatAxis(currency)} stroke={AXIS_COLOR} fontSize={12} width={56} />
+            <Tooltip {...tooltipProps(currency)} />
             <Bar dataKey="amount" fill={BAR_COLOR} maxBarSize={32} radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>

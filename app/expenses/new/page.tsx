@@ -5,7 +5,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ExpenseForm, { ExpenseFormValues, ExpenseSubmit } from "@/components/ExpenseForm";
 import type { PendingExpense } from "@/lib/expenses";
-import { formatMoney, toAmountInput, toLocalISODate, todayISO } from "@/lib/format";
+import { formatAmount, toAmountInput, toLocalISODate, todayISO } from "@/lib/format";
 import { notifyPendingChanged } from "@/lib/usePendingCount";
 
 interface Saved {
@@ -13,7 +13,7 @@ interface Saved {
   label: string;
 }
 
-const emptyValues = (): ExpenseFormValues => ({ title: "", amount: "", categoryId: "", date: todayISO() });
+const emptyValues = (): ExpenseFormValues => ({ title: "", amount: "", categoryId: "", date: todayISO(), currency: "ARS" });
 
 function NewExpense() {
   const router = useRouter();
@@ -57,13 +57,15 @@ function NewExpense() {
       return;
     }
     const saved = await res.json();
-    setLastSaved({ id: saved.id, label: `${expense.title} · $${formatMoney(expense.amount)}` });
+    const cuotas = expense.installments ? ` en ${expense.installments} cuotas` : "";
+    setLastSaved({ id: saved.id, label: `${expense.title} · ${formatAmount(expense.amount, expense.currency)}${cuotas}` });
     setFormKey((k) => k + 1);
   };
 
   const undo = async () => {
     if (!lastSaved) return;
-    const res = await fetch(`/api/expenses/${lastSaved.id}`, { method: "DELETE" });
+    // scope=group also removes the other installments of a purchase just saved in cuotas
+    const res = await fetch(`/api/expenses/${lastSaved.id}?scope=group`, { method: "DELETE" });
     setLastSaved(null);
     if (!res.ok) alert("No se pudo deshacer.");
   };
@@ -80,7 +82,9 @@ function NewExpense() {
           amount: pending.amount ? toAmountInput(pending.amount) : "",
           categoryId: "",
           date: toLocalISODate(new Date(pending.createdAt)),
+          currency: "ARS",
         }}
+        allowInstallments
         submitLabel="Guardar"
         onSubmit={createExpense}
       />
@@ -95,6 +99,7 @@ function NewExpense() {
         initialValues={emptyValues()}
         submitLabel="Guardar"
         allowAnother
+        allowInstallments
         autoFocusAmount
         onSubmit={createExpense}
       />

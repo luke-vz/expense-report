@@ -15,6 +15,9 @@ export interface Expense {
   currency?: string;
   note?: string | null;
   receiptUrl?: string | null;
+  installmentGroupId?: string | null;
+  installmentNumber?: number | null;
+  installmentCount?: number | null;
   createdAt: string;
   updatedAt: string;
 }

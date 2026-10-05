@@ -33,16 +33,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 }
 
-// DELETE /api/expenses/:id
+// DELETE /api/expenses/:id — ?scope=group deletes every installment of the same purchase
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "Missing ID" }, { status: 400 });
 
+  const expense = await prisma.expense.findUnique({ where: { id } });
+  if (!expense) return NextResponse.json({ error: "Expense not found" }, { status: 404 });
+
+  const wholeGroup = req.nextUrl.searchParams.get("scope") === "group" && expense.installmentGroupId;
+  const where = wholeGroup ? { installmentGroupId: expense.installmentGroupId } : { id };
+
   try {
-    const deleted = await prisma.expense.delete({ where: { id } });
-    const photoKey = keyFromPhotoUrl(deleted.receiptUrl);
-    if (photoKey) await deletePhoto(photoKey);
-    return NextResponse.json({ ok: true });
+    const { count } = await prisma.expense.deleteMany({ where });
+    // Installments share one receipt photo: delete it only once nothing references it
+    const photoKey = keyFromPhotoUrl(expense.receiptUrl);
+    if (photoKey && !(await prisma.expense.count({ where: { receiptUrl: expense.receiptUrl } }))) {
+      await deletePhoto(photoKey);
+    }
+    return NextResponse.json({ ok: true, deleted: count });
   } catch {
     return NextResponse.json({ error: "Failed to delete expense" }, { status: 500 });
   }

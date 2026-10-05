@@ -14,6 +14,7 @@ export default function EditExpensePage() {
   const [initialValues, setInitialValues] = useState<ExpenseFormValues | null>(null);
   const [loadError, setLoadError] = useState("");
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [installment, setInstallment] = useState<string | null>(null);
 
   // Traemos el gasto existente
   useEffect(() => {
@@ -26,11 +27,15 @@ export default function EditExpensePage() {
         }
         const expense: Expense = await res.json();
         setReceiptUrl(expense.receiptUrl ?? null);
+        if (expense.installmentNumber && expense.installmentCount) {
+          setInstallment(`${expense.installmentNumber}/${expense.installmentCount}`);
+        }
         setInitialValues({
           title: expense.title,
           amount: toAmountInput(expense.amount),
           categoryId: expense.categoryId,
           date: expense.date.slice(0, 10), // "YYYY-MM-DD" para el input
+          currency: expense.currency ?? "ARS",
         });
       } catch (err) {
         console.error(err);
@@ -57,7 +62,7 @@ export default function EditExpensePage() {
   return (
     <div>
       <ExpenseForm
-        heading="Editar gasto"
+        heading={installment ? `Editar cuota ${installment}` : "Editar gasto"}
         initialValues={initialValues}
         photoUrl={receiptUrl}
         submitLabel="Actualizar"

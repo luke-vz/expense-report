@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Expense } from "@/lib/expenses";
 import { useCategories } from "@/lib/useCategories";
-import { currentMonthKey, formatDate, formatMoney, monthKey } from "@/lib/format";
+import { currentMonthKey, expenseTitle, formatAmount, formatDate, monthKey } from "@/lib/format";
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -26,6 +26,28 @@ export default function ExpensesPage() {
     const matchesMonth = month ? monthKey(exp.date) === month : true;
     return matchesCategory && matchesMonth;
   });
+
+  // Installments ask whether to delete just this one or the whole purchase
+  const remove = async (exp: Expense) => {
+    let wholeGroup = false;
+    if (exp.installmentGroupId) {
+      wholeGroup = confirm(
+        `"${exp.title}" está en ${exp.installmentCount} cuotas.\n\n¿Eliminar TODAS las cuotas?\n(Cancelar para elegir otra opción)`
+      );
+      if (!wholeGroup && !confirm(`¿Eliminar solo la cuota ${exp.installmentNumber}/${exp.installmentCount}?`)) return;
+    } else if (!confirm("¿Seguro que querés eliminar este gasto?")) {
+      return;
+    }
+
+    const res = await fetch(`/api/expenses/${exp.id}${wholeGroup ? "?scope=group" : ""}`, { method: "DELETE" });
+    if (!res.ok) {
+      alert("No se pudo eliminar el gasto.");
+      return;
+    }
+    setExpenses(
+      expenses.filter((e) => (wholeGroup ? e.installmentGroupId !== exp.installmentGroupId : e.id !== exp.id))
+    );
+  };
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -81,8 +103,8 @@ export default function ExpensesPage() {
                 {filteredExpenses.length > 0 ? (
                     filteredExpenses.map((exp) => (
                     <tr key={exp.id} className="border-t">
-                        <td className="p-3">{exp.title}</td>
-                        <td className="p-3">${formatMoney(exp.amount)}</td>
+                        <td className="p-3">{expenseTitle(exp)}</td>
+                        <td className="p-3">{formatAmount(exp.amount, exp.currency)}</td>
                         <td className="p-3">{exp.category.name}</td>
                         <td className="p-3">{formatDate(exp.date)}</td>
                         <td className="p-3 flex gap-2">
@@ -93,15 +115,7 @@ export default function ExpensesPage() {
                             Editar
                         </Link>
                         <button
-                            onClick={async () => {
-                            if (!confirm("¿Seguro que querés eliminar este gasto?")) return;
-                            const res = await fetch(`/api/expenses/${exp.id}`, { method: "DELETE" });
-                            if (!res.ok) {
-                              alert("No se pudo eliminar el gasto.");
-                              return;
-                            }
-                            setExpenses(expenses.filter((e) => e.id !== exp.id));
-                            }}
+                            onClick={() => remove(exp)}
                             className="text-red-400 hover:underline"
                         >
                             Eliminar
