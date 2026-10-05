@@ -1,65 +1,117 @@
-"use client"
+// components/ExpenseForm.tsx
+"use client";
 
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useState } from "react";
+import { useCategories } from "@/lib/useCategories";
 
-const expenseSchema = z.object({
-  amount: z.string().refine(val => !isNaN(Number(val)) && Number(val) > 0, {
-    message: "El monto debe ser un número positivo",
-  }),
-  category: z.string().min(1, "Seleccione una categoría"),
-  date: z.string().min(1, "Seleccione una fecha"),
-  note: z.string().optional(),
-})
-
-type ExpenseFormData = z.infer<typeof expenseSchema>
-export type ExpenseSaveData = Omit<ExpenseFormData, "amount"> & { amount: number }
-
-interface ExpenseFormProps {
-  onSave: (data: ExpenseSaveData) => void
+export interface ExpenseFormValues {
+  title: string;
+  amount: string;
+  categoryId: string;
+  date: string; // "YYYY-MM-DD"
 }
 
-export default function ExpenseForm({ onSave }: ExpenseFormProps) {
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<ExpenseFormData>({
-    resolver: zodResolver(expenseSchema),
-    defaultValues: {
-      date: new Date().toISOString().slice(0, 10),
-      category: "Alimentos",
-    }
-  })
+interface ExpenseFormProps {
+  initialValues: ExpenseFormValues;
+  submitLabel: string;
+  /** Returns an error message to show, or nothing on success. */
+  onSubmit: (values: ExpenseFormValues) => Promise<string | void>;
+}
 
-  const onSubmit = (data: ExpenseFormData) => {
-    onSave({ ...data, amount: Number(data.amount) })
-    reset()
-  }
+export default function ExpenseForm({ initialValues, submitLabel, onSubmit }: ExpenseFormProps) {
+  const { categories } = useCategories();
+  const [form, setForm] = useState(initialValues);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!form.title.trim() || !form.amount || !form.categoryId || !form.date) {
+      setError("Todos los campos son obligatorios.");
+      return;
+    }
+    if (!(parseFloat(form.amount) > 0)) {
+      setError("El monto tiene que ser mayor a cero.");
+      return;
+    }
+
+    setSaving(true);
+    const submitError = await onSubmit(form);
+    setSaving(false);
+    setError(submitError ?? "");
+  };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3 p-4 border rounded-xl shadow-sm bg-white">
-      <input
-        {...register("amount")}
-        placeholder="Monto"
-        className="border p-2 rounded"
-      />
-      {errors.amount && <p className="text-red-500 text-sm">{errors.amount.message}</p>}
+    <form onSubmit={handleSubmit} className="border-card space-y-4 shadow rounded-md p-6 bg-secundario">
+      {error && <p className="text-red-500">{error}</p>}
 
-      <select {...register("category")} className="border p-2 rounded">
-        <option value="Alimentos">Alimentos</option>
-        <option value="Transporte">Transporte</option>
-        <option value="Hogar">Hogar</option>
-        <option value="Entretenimiento">Entretenimiento</option>
-        <option value="Salud">Salud</option>
-      </select>
-      {errors.category && <p className="text-red-500 text-sm">{errors.category.message}</p>}
+      <div>
+        <label className="block text-sm font-medium text-gray-400">Título</label>
+        <input
+          type="text"
+          name="title"
+          value={form.title}
+          onChange={handleChange}
+          className="bg-input mt-1 block w-full rounded-md shadow-sm p-2"
+          required
+        />
+      </div>
 
-      <input type="date" {...register("date")} className="border p-2 rounded" />
-      {errors.date && <p className="text-red-500 text-sm">{errors.date.message}</p>}
+      <div>
+        <label className="block text-sm font-medium text-gray-400">Monto</label>
+        <input
+          type="number"
+          name="amount"
+          value={form.amount}
+          onChange={handleChange}
+          className="bg-input mt-1 block w-full rounded-md shadow-sm p-2"
+          inputMode="decimal"
+          step="0.01"
+          min="0.01"
+          required
+        />
+      </div>
 
-      <textarea {...register("note")} placeholder="Nota (opcional)" className="border p-2 rounded" />
+      <div>
+        <label className="block text-sm font-medium text-gray-400">Categoría</label>
+        <select
+          name="categoryId"
+          value={form.categoryId}
+          onChange={handleChange}
+          className="bg-input mt-1 block w-full rounded-md shadow-sm p-2"
+          required
+        >
+          <option value="">Seleccioná...</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+      </div>
 
-      <button type="submit" className="bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
-        Guardar
+      <div>
+        <label className="block text-sm font-medium text-gray-400">Fecha</label>
+        <input
+          type="date"
+          name="date"
+          value={form.date}
+          onChange={handleChange}
+          className="bg-input mt-1 block w-full rounded-md shadow-sm p-2"
+          required
+        />
+      </div>
+
+      <button
+        type="submit"
+        disabled={saving}
+        className="w-full bg-boton px-4 py-2 rounded-md disabled:opacity-50"
+      >
+        {saving ? "Guardando..." : submitLabel}
       </button>
     </form>
-  )
+  );
 }

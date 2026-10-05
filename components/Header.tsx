@@ -36,7 +36,7 @@ export default function Header() {
               className={`px-3 py-2 rounded-md transition-colors duration-300 ${
                 pathname === link.href
                   ? "bg-boton"
-                  : "text-gray-700 hover:bg-gray-100"
+                  : "text-gray-300 hover:bg-neutral-800 hover:text-white"
               }`}
             >
               {link.label}
@@ -46,7 +46,8 @@ export default function Header() {
 
         {/* Hamburger Button */}
         <button
-          className="md:hidden flex items-center px-3 py-2 border rounded text-gray-700 border-gray-400"
+          aria-label="Abrir menú"
+          className="md:hidden flex items-center px-3 py-2 border rounded text-gray-300 border-gray-600"
           onClick={() => setOpen(!open)}
         >
           <svg
@@ -90,7 +91,7 @@ export default function Header() {
                     className={`block px-3 py-2 rounded-md transition-colors duration-300 ${
                       pathname === link.href
                         ? "bg-boton"
-                        : "text-gray-700 hover:bg-gray-100"
+                        : "text-gray-300 hover:bg-neutral-800 hover:text-white"
                     }`}
                     onClick={() => setOpen(false)}
                   >
