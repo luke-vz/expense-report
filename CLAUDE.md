@@ -29,8 +29,9 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 - **Deploy/datos:** la base de Preview no se migra sola (`DATABASE_URL` de Preview es una variable distinta de la de Production; no está confirmado si apuntan a la misma base); backups; sacar `log: ["query"]` de `lib/prisma.ts` en prod.
 - **Prolijidad:** listado como tarjetas agrupadas por día en el celular (hoy la tabla se desplaza en horizontal); no hay tests (`parseAmount` es buen candidato para empezar).
 - **Carga:** medio de pago; UI para `note` (existe en la base, sin campo en el formulario); gastos fijos/recurrentes con vencimiento; carga sin conexión (service worker + cola local); sugerencias al cargar (autocompletar detalle con categoría, gastos frecuentes como atajos); **gasto por audio** (ver la idea anotada en Estado actual); importar resúmenes de tarjeta/banco.
-- **Análisis:** dashboard por mes (ranking con %, vs mes anterior y promedio 3 meses, top gastos); categorías marcadas fijo/variable/prescindible; subcategorías o etiquetas; búsqueda; equivalente en USD por fecha (inflación).
+- **Análisis:** categorías marcadas fijo/variable/prescindible; subcategorías o etiquetas; búsqueda; equivalente en USD por fecha (inflación).
 - **Ahorro:** ingresos y tasa de ahorro; presupuestos por categoría con alertas; metas de ahorro; exportar CSV/Excel.
+- **Household (pedido por el usuario, 2026-10-05):** hoy todos los mails de `ALLOWED_EMAILS` ya comparten un único conjunto de datos. Lo que falta: gestionar miembros desde la app (invitar/quitar sin tocar variables de Vercel) y, si hace falta, varios hogares separados (modelo `Household` + `householdId` en gastos, categorías y pendientes). Aclarar con el usuario cuál de las dos cosas necesita antes de diseñar.
 - **Pareja:** quién cargó cada gasto (el login ya da el mail). No hace falta balance entre ellos: es caja común.
 
 ## Arquitectura
@@ -45,7 +46,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
   - `/` — total del mes, cartel de pendientes, "Cargar gasto" + botón 📷, últimos 5 gastos.
   - `/expenses` — tabla con filtros de categoría y mes (en el cliente) y link a Categorías.
   - `/expenses/new`, `/expenses/[id]/edit` — ambas usan `components/ExpenseForm.tsx`: carga rápida con monto grande arriba, categorías como botones ordenadas por uso, fecha Hoy/Ayer/otra y acciones fijas abajo. En el alta, "Guardar y otro" remonta el form (cambiando `key`) y muestra un aviso con "Deshacer". Con `?pending=<id>` completa un pendiente. En el alta normal hay "📷 Foto del ticket" (`allowPhoto`): la foto adjunta se sube primero como pendiente y el gasto se crea con `pendingId` (mismo camino que completar un pendiente, así queda como `receiptUrl`, también en cuotas); con foto adjunta aparece "Guardar como pendiente" (`onSaveAsPending`), que guarda foto + monto + detalle para completar después.
-  - `/dashboard` — ranking de categorías en barras horizontales (con % del total) y barras por mes.
+  - `/dashboard` — por mes (flechas ‹ › o tocando una barra): total con variación vs mes anterior y vs promedio de los 3 meses previos (solo los que tienen gastos), ranking de categorías con % y variación por categoría, los 5 gastos más grandes y barras de los últimos 12 meses con el mes elegido resaltado. Una moneda por vez (pestañas ARS/USD si hay gastos en USD).
   - `/categories` — agregar, renombrar, unir y borrar.
   - `/pending` — capturar y listar pendientes.
   - `/login` — botón de Google; muestra "sin acceso" si la cuenta no está en la allowlist.
@@ -68,7 +69,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 - **Monedas separadas, nunca convertidas.** Solo `ARS` y `USD` (`CURRENCIES` en `lib/validation.ts`); USD se usa sobre todo para suscripciones. Totales de la home por moneda; el dashboard muestra una moneda por vez con pestañas que aparecen solo si hay gastos en USD. Decisión del usuario: ver separado alcanza, sin cotización.
 - **Montos tipeados en formato argentino.** El input de monto es `type="text" inputMode="decimal"` (no `type="number"`, que según el teclado rechaza la coma) y se interpreta con `parseAmount` (`lib/format.ts`): coma = decimal, puntos = miles; sin coma, un punto seguido de exactamente 3 dígitos es de miles (`1.500` → 1500), si no es decimal (`12.5`). La API recibe siempre un número.
 - **Título opcional en la UI:** si queda vacío, el form manda el nombre de la categoría. La API sigue exigiendo `title` (el default lo pone el cliente).
-- **Dashboard con una sola serie por gráfico, un solo color** (`#3987e5`, validado contra el fondo de las tarjetas `#2b2b2b`). Con 9+ categorías una torta repite colores; el ranking en barras se lee por la etiqueta del eje y responde directo "dónde se va la plata".
+- **Dashboard sin paleta categórica:** el ranking de categorías es una lista HTML con barras de un solo color (`#3987e5`, validado contra `#2b2b2b`) — con 9+ categorías una torta repetiría colores y la lista se lee mejor en el celular. En el gráfico de 12 meses el mes elegido va en azul y el resto en gris (`#4b5563`). Variaciones: subir el gasto es lo malo → ▲ rojo / ▼ verde, siempre con flecha y signo (no solo color).
 - **Filtrado y agregación en el cliente:** las páginas traen todos los gastos y filtran en el browser. Alcanza para el volumen de un hogar; no hace falta paginar por ahora.
 
 ## Convenciones

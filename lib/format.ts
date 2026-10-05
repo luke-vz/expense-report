@@ -86,3 +86,10 @@ export function parseAmount(input: string): number {
 export function toAmountInput(amount: number): string {
   return amount.toString().replace(".", ",");
 }
+
+/** "2026-10" shifted by `months` months: shiftMonth("2026-01", -1) -> "2025-12". */
+export function shiftMonth(key: string, months: number): string {
+  const [y, m] = key.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + months, 1));
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`;
+}
