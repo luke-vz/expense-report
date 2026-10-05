@@ -31,6 +31,10 @@ model Expense {
   installmentNumber  Int?
   installmentCount   Int?
 
+  // Who loaded it (from the Google session); null for expenses loaded before login existed
+  createdBy     String?
+  createdByName String?
+
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

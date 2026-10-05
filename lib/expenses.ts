@@ -18,6 +18,8 @@ export interface Expense {
   installmentGroupId?: string | null;
   installmentNumber?: number | null;
   installmentCount?: number | null;
+  createdBy?: string | null;
+  createdByName?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -29,4 +31,12 @@ export interface PendingExpense {
   photoUrl: string | null;
   createdBy: string | null;
   createdAt: string; // ISO timestamp of the capture
+}
+
+/** A title already used, with how often and the category used last time (GET /api/suggestions). */
+export interface Suggestion {
+  title: string;
+  categoryId: string;
+  count: number;
+  lastDate: string;
 }

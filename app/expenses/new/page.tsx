@@ -5,7 +5,8 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ExpenseForm, { ExpenseFormValues, ExpenseSubmit, PendingDraft } from "@/components/ExpenseForm";
 import type { PendingExpense } from "@/lib/expenses";
-import { formatAmount, toAmountInput, toLocalISODate, todayISO } from "@/lib/format";
+import { expenseTitle, formatAmount, formatDate, toAmountInput, toLocalISODate, todayISO } from "@/lib/format";
+import type { Expense } from "@/lib/expenses";
 import { notifyPendingChanged } from "@/lib/usePendingCount";
 
 interface Saved {
@@ -66,11 +67,29 @@ function NewExpense() {
       if (!uploaded) return "No se pudo subir la foto.";
       fromPending = uploaded.id;
     }
-    const res = await fetch("/api/expenses", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(fromPending ? { ...expense, pendingId: fromPending } : expense),
-    });
+    const post = (allowDuplicate: boolean) =>
+      fetch("/api/expenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...expense, ...(fromPending ? { pendingId: fromPending } : {}), allowDuplicate }),
+      });
+    let res = await post(false);
+
+    // Same amount, category and day already loaded (maybe by the other person): ask first
+    if (res.status === 409) {
+      const { duplicate } = (await res.json()) as { duplicate: Expense };
+      const by = duplicate.createdByName ? `, cargado por ${duplicate.createdByName.split(" ")[0]}` : "";
+      const ok = confirm(
+        `Ya hay un gasto igual: "${expenseTitle(duplicate)}" ${formatAmount(duplicate.amount, duplicate.currency)} ` +
+          `el ${formatDate(duplicate.date)}${by}.\n\n¿Cargarlo igual?`
+      );
+      if (!ok) {
+        // A photo attached here was uploaded as a pending just for this save: discard it
+        if (photo && fromPending) await fetch(`/api/pending/${fromPending}`, { method: "DELETE" });
+        return "No se cargó: era un duplicado.";
+      }
+      res = await post(true);
+    }
     if (!res.ok) return "Error al guardar el gasto.";
 
     if (pendingId) {
@@ -129,6 +148,7 @@ function NewExpense() {
         allowAnother
         allowInstallments
         allowPhoto
+        showShortcuts
         onSaveAsPending={savePending}
         autoFocusAmount
         onSubmit={createExpense}
