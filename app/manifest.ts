@@ -7,6 +7,9 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Gastos",
     description: "Trackeá tus gastos del hogar",
     start_url: "/expenses/new",
+    // Without an explicit scope the browser derives it from start_url ("/expenses/"), and
+    // every page outside it (home, dashboard, pending…) opened with browser UI
+    scope: "/",
     display: "standalone",
     background_color: "#121212",
     theme_color: "#040404",

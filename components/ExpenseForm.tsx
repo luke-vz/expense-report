@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import PhotoViewer from "@/components/PhotoViewer";
 import { useCategories } from "@/lib/useCategories";
 import { daysAgoISO, parseAmount } from "@/lib/format";
 
@@ -109,10 +110,9 @@ export default function ExpenseForm({
       {error && <p className="text-red-500 mb-4">{error}</p>}
 
       {photoUrl && (
-        <a href={photoUrl} target="_blank" rel="noreferrer" className="block mb-6" aria-label="Ver foto completa">
-          {/* eslint-disable-next-line @next/next/no-img-element -- auth-protected API image */}
-          <img src={photoUrl} alt="Foto del gasto" className="mx-auto max-h-64 rounded-md object-contain" />
-        </a>
+        <div className="mb-6 flex justify-center">
+          <PhotoViewer src={photoUrl} alt="Foto del gasto" className="max-h-64 rounded-md object-contain" />
+        </div>
       )}
 
       <label className="block text-center">
