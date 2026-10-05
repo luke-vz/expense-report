@@ -81,7 +81,7 @@ export default function CategoriesPage() {
   };
 
   return (
-    <main className="max-w-xl mx-auto p-6">
+    <div className="max-w-xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6">Categorías</h1>
 
       <form onSubmit={addCategory} className="flex gap-2 mb-6">
@@ -180,6 +180,6 @@ export default function CategoriesPage() {
           </li>
         ))}
       </ul>
-    </main>
+    </div>
   );
 }
