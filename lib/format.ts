@@ -35,6 +35,11 @@ export function todayISO(): string {
 export function daysAgoISO(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() - days);
+  return toLocalISODate(d);
+}
+
+/** A Date's local calendar day as "YYYY-MM-DD". */
+export function toLocalISODate(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 

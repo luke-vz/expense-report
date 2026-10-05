@@ -1,21 +1,37 @@
 // app/expenses/new/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import ExpenseForm, { ExpenseSubmit } from "@/components/ExpenseForm";
-import { formatMoney, todayISO } from "@/lib/format";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import ExpenseForm, { ExpenseFormValues, ExpenseSubmit } from "@/components/ExpenseForm";
+import type { PendingExpense } from "@/lib/expenses";
+import { formatMoney, toAmountInput, toLocalISODate, todayISO } from "@/lib/format";
+import { notifyPendingChanged } from "@/lib/usePendingCount";
 
 interface Saved {
   id: string;
   label: string;
 }
 
-export default function NewExpensePage() {
+const emptyValues = (): ExpenseFormValues => ({ title: "", amount: "", categoryId: "", date: todayISO() });
+
+function NewExpense() {
   const router = useRouter();
+  // ?pending=<id>: completing a "pre-gasto" captured earlier
+  const pendingId = useSearchParams().get("pending");
+  const [pending, setPending] = useState<PendingExpense | null>(null);
+  const [loadError, setLoadError] = useState("");
   // Changing the key remounts the form with empty values after "Guardar y otro"
   const [formKey, setFormKey] = useState(0);
   const [lastSaved, setLastSaved] = useState<Saved | null>(null);
+
+  useEffect(() => {
+    if (!pendingId) return;
+    fetch(`/api/pending/${pendingId}`).then(async (res) => {
+      if (res.ok) setPending(await res.json());
+      else setLoadError("Ese pendiente ya no existe.");
+    });
+  }, [pendingId]);
 
   useEffect(() => {
     if (!lastSaved) return;
@@ -27,10 +43,15 @@ export default function NewExpensePage() {
     const res = await fetch("/api/expenses", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(expense),
+      body: JSON.stringify(pendingId ? { ...expense, pendingId } : expense),
     });
     if (!res.ok) return "Error al guardar el gasto.";
 
+    if (pendingId) {
+      notifyPendingChanged();
+      router.push("/pending");
+      return;
+    }
     if (!another) {
       router.push("/expenses");
       return;
@@ -47,12 +68,31 @@ export default function NewExpensePage() {
     if (!res.ok) alert("No se pudo deshacer.");
   };
 
+  if (pendingId) {
+    if (loadError) return <p className="p-6 text-red-500">{loadError}</p>;
+    if (!pending) return <p className="p-6">Cargando...</p>;
+    return (
+      <ExpenseForm
+        heading="Completar gasto"
+        photoUrl={pending.photoUrl}
+        initialValues={{
+          title: pending.note ?? "",
+          amount: pending.amount ? toAmountInput(pending.amount) : "",
+          categoryId: "",
+          date: toLocalISODate(new Date(pending.createdAt)),
+        }}
+        submitLabel="Guardar"
+        onSubmit={createExpense}
+      />
+    );
+  }
+
   return (
     <div>
       <ExpenseForm
         key={formKey}
         heading="Nuevo gasto"
-        initialValues={{ title: "", amount: "", categoryId: "", date: todayISO() }}
+        initialValues={emptyValues()}
         submitLabel="Guardar"
         allowAnother
         autoFocusAmount
@@ -71,5 +111,14 @@ export default function NewExpensePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function NewExpensePage() {
+  // useSearchParams needs a Suspense boundary for static rendering
+  return (
+    <Suspense>
+      <NewExpense />
+    </Suspense>
   );
 }

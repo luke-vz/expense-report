@@ -42,3 +42,6 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
+
+# local photo storage when BLOB_READ_WRITE_TOKEN is unset
+/.uploads

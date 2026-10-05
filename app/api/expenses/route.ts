@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { serializeExpense } from "@/lib/serialize";
 import { parseExpenseInput } from "@/lib/validation";
+import { photoUrl } from "@/lib/photos";
 
 export interface ExpenseFilter {
   categoryId?: string;
@@ -42,10 +43,21 @@ export async function POST(req: NextRequest) {
   if (parsed.error !== undefined) return NextResponse.json({ error: parsed.error }, { status: 400 });
   const { data } = parsed;
 
+  // Completing a pending expense: its photo becomes the receipt and the pending
+  // entry is removed in the same transaction
+  const pendingId = typeof body?.pendingId === "string" ? body.pendingId : null;
+
   try {
-    const expense = await prisma.expense.create({
-      data: data as Prisma.ExpenseUncheckedCreateInput,
-      include: { category: true },
+    const expense = await prisma.$transaction(async (tx) => {
+      let receiptUrl = data.receiptUrl;
+      if (pendingId) {
+        const pending = await tx.pendingExpense.delete({ where: { id: pendingId } });
+        if (pending.photoKey) receiptUrl = photoUrl(pending.photoKey);
+      }
+      return tx.expense.create({
+        data: { ...data, receiptUrl } as Prisma.ExpenseUncheckedCreateInput,
+        include: { category: true },
+      });
     });
     return NextResponse.json(serializeExpense(expense));
   } catch {

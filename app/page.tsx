@@ -3,11 +3,14 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import CaptureButton from "@/components/CaptureButton";
 import type { Expense } from "@/lib/expenses";
+import { usePendingCount } from "@/lib/usePendingCount";
 import { currentMonthKey, formatDate, formatMoney, monthKey } from "@/lib/format";
 
 export default function HomePage() {
   const [expenses, setExpenses] = useState<Expense[] | null>(null);
+  const pendingCount = usePendingCount();
 
   useEffect(() => {
     const fetchExpenses = async () => {
@@ -34,12 +37,29 @@ export default function HomePage() {
         </p>
       </section>
 
-      <Link
-        href="/expenses/new"
-        className="flex items-center justify-center gap-2 w-full rounded-md bg-[#3987e5] py-4 text-lg font-semibold text-white"
-      >
-        <span className="text-2xl leading-none">+</span> Cargar gasto
-      </Link>
+      {pendingCount > 0 && (
+        <Link
+          href="/pending"
+          className="flex items-center justify-between rounded-md border border-[#3987e5] bg-[#3987e5]/10 px-4 py-3"
+        >
+          <span>
+            Tenés <strong>{pendingCount}</strong> {pendingCount === 1 ? "gasto" : "gastos"} para completar
+          </span>
+          <span className="text-[#3987e5] font-semibold">Ver →</span>
+        </Link>
+      )}
+
+      <div className="flex gap-3">
+        <Link
+          href="/expenses/new"
+          className="flex flex-1 items-center justify-center gap-2 rounded-md bg-[#3987e5] py-4 text-lg font-semibold text-white"
+        >
+          <span className="text-2xl leading-none">+</span> Cargar gasto
+        </Link>
+        <CaptureButton className="flex items-center justify-center rounded-md bg-boton px-5 text-2xl" >
+          <span aria-label="Sacar foto para completar después">📷</span>
+        </CaptureButton>
+      </div>
 
       <section>
         <div className="flex items-baseline justify-between mb-2">

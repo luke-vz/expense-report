@@ -31,12 +31,17 @@ export default function ExpensesPage() {
     <div className="max-w-4xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Listado de Gastos</h1>
-        <Link
-          href="/expenses/new"
-          className="bg-boton px-4 py-2 rounded-md"
-        >
-          Agregar
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/categories" className="text-sm text-[#3987e5]">
+            Categorías
+          </Link>
+          <Link
+            href="/expenses/new"
+            className="bg-boton px-4 py-2 rounded-md"
+          >
+            Agregar
+          </Link>
+        </div>
       </div>
 
       {/* Filtros */}

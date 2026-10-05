@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { serializeExpense } from "@/lib/serialize";
 import { parseExpenseInput } from "@/lib/validation";
+import { deletePhoto, keyFromPhotoUrl } from "@/lib/photos";
 
 // GET /api/expenses/:id
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -38,7 +39,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (!id) return NextResponse.json({ error: "Missing ID" }, { status: 400 });
 
   try {
-    await prisma.expense.delete({ where: { id } });
+    const deleted = await prisma.expense.delete({ where: { id } });
+    const photoKey = keyFromPhotoUrl(deleted.receiptUrl);
+    if (photoKey) await deletePhoto(photoKey);
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Failed to delete expense" }, { status: 500 });

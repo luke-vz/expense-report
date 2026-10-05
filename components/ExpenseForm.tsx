@@ -27,6 +27,8 @@ interface ExpenseFormProps {
   /** Shows a second "Guardar y otro" button that calls onSubmit with another = true. */
   allowAnother?: boolean;
   autoFocusAmount?: boolean;
+  /** Receipt photo shown above the amount (completing a pending expense, or editing one). */
+  photoUrl?: string | null;
   /** Returns an error message to show, or nothing on success. */
   onSubmit: (expense: ExpenseSubmit, another: boolean) => Promise<string | void>;
 }
@@ -39,6 +41,7 @@ export default function ExpenseForm({
   submitLabel,
   allowAnother = false,
   autoFocusAmount = false,
+  photoUrl,
   onSubmit,
 }: ExpenseFormProps) {
   const { categories } = useCategories();
@@ -104,6 +107,13 @@ export default function ExpenseForm({
       </div>
 
       {error && <p className="text-red-500 mb-4">{error}</p>}
+
+      {photoUrl && (
+        <a href={photoUrl} target="_blank" rel="noreferrer" className="block mb-6" aria-label="Ver foto completa">
+          {/* eslint-disable-next-line @next/next/no-img-element -- auth-protected API image */}
+          <img src={photoUrl} alt="Foto del gasto" className="mx-auto max-h-64 rounded-md object-contain" />
+        </a>
+      )}
 
       <label className="block text-center">
         <span className="sr-only">Monto</span>
