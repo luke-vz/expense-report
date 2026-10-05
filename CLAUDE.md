@@ -14,9 +14,9 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 
 **La base de producción TIENE DATOS REALES** (266 gastos al 2026-10-05) y no se puede resetear. La migración `categories_decimal_date` los conservó: las categorías que ya existían como texto (`Colegio`, `Entretenimiento`, `Tarjetas`) quedaron como categorías propias. Claude no tiene acceso a las credenciales de prod; cualquier operación directa sobre esa base la hace el usuario.
 
-**Login (rama `feature/login`, en curso):** Google vía next-auth v4 con allowlist de mails. Hasta que se mergee y se configuren las variables en Vercel, la app publicada sigue sin login.
+**Login con Google en producción desde 2026-10-05** (PR #9): next-auth v4 con allowlist de mails. Credenciales OAuth en un proyecto de Google Cloud del usuario (pantalla de consentimiento en modo prueba, con los dos mails como usuarios de prueba); variables cargadas en Vercel Production.
 
-**Plan aprobado — "pre-gasto"** (sacar foto ahora, completar después), en etapas: (0) login con Google — en curso; (1) pendientes con foto (tabla separada de `Expense`, foto en Vercel Blob comprimida a ~200 KB, globito en la barra inferior, al completar la foto queda en `receiptUrl`); (2) lectura del ticket con IA para precompletar — el usuario eligió el modelo más barato (Claude Haiku 4.5); (3) notificación push diaria (service worker + tarea diaria de Vercel; en iPhone solo con la app instalada). Solo Google como proveedor de login (Apple requiere cuenta paga de developer).
+**Plan aprobado — "pre-gasto"** (sacar foto ahora, completar después), en etapas: (0) login con Google — hecho; (1) pendientes con foto (tabla separada de `Expense`, foto en Vercel Blob comprimida a ~200 KB, globito en la barra inferior, al completar la foto queda en `receiptUrl`); (2) lectura del ticket con IA para precompletar — el usuario eligió el modelo más barato (Claude Haiku 4.5); (3) notificación push diaria (service worker + tarea diaria de Vercel; en iPhone solo con la app instalada). Solo Google como proveedor de login (Apple requiere cuenta paga de developer).
 
 **Próximos pasos:** el usuario está revisando el backlog de abajo para priorizarlo; no arranques ítems nuevos sin que elija. Lo recomendado: datos confiables: moneda ARS/USD, cuotas, dashboard mensual, clasificación fijo/variable/prescindible.
 
