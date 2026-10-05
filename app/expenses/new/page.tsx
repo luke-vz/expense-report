@@ -3,14 +3,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useCategories } from "@/lib/useCategories";
+import { todayISO } from "@/lib/format";
 
 export default function NewExpensePage() {
   const router = useRouter();
+  const { categories } = useCategories();
   const [form, setForm] = useState({
     title: "",
     amount: "",
-    category: "",
-    date: new Date().toISOString().split('T')[0],
+    categoryId: "",
+    date: todayISO(),
   });
   const [error, setError] = useState("");
 
@@ -21,7 +24,7 @@ export default function NewExpensePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!form.title || !form.amount || !form.category || !form.date) {
+    if (!form.title || !form.amount || !form.categoryId || !form.date) {
       setError("Todos los campos son obligatorios.");
       return;
     }
@@ -32,7 +35,7 @@ export default function NewExpensePage() {
       body: JSON.stringify({
         title: form.title,
         amount: parseFloat(form.amount),
-        category: form.category,
+        categoryId: form.categoryId,
         date: form.date,
       }),
     });
@@ -79,19 +82,16 @@ export default function NewExpensePage() {
         <div>
           <label className="block text-sm font-medium text-gray-500">Categoría</label>
           <select
-            name="category"
-            value={form.category}
+            name="categoryId"
+            value={form.categoryId}
             onChange={handleChange}
             className="bg-input mt-1 block w-full rounded-md border-gray-500 shadow-sm p-2"
             required
           >
             <option value="">Seleccioná...</option>
-            <option value="food">Comida</option>
-            <option value="house">Casa</option>
-            <option value="transport">Transporte</option>
-            <option value="utilities">Servicios</option>
-            <option value="entertainment">Ocio</option>
-            <option value="other">Otros</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
           </select>
         </div>
 

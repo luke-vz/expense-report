@@ -5,14 +5,8 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, Tooltip, Legend
 } from "recharts";
-
-interface Expense {
-  id: string;
-  title: string;
-  amount: number;
-  category: string;
-  date: string;
-}
+import type { Expense } from "@/lib/expenses";
+import { monthKey, monthLabel } from "@/lib/format";
 
 interface CategoryData {
   category: string;
@@ -40,20 +34,23 @@ export default function DashboardPage() {
 
   const byCategory: CategoryData[] = Object.values(
     expenses.reduce((acc: Record<string, CategoryData>, exp) => {
-      if (!acc[exp.category]) acc[exp.category] = { category: exp.category, amount: 0 };
-      acc[exp.category].amount += exp.amount;
+      const category = exp.category.name;
+      if (!acc[category]) acc[category] = { category, amount: 0 };
+      acc[category].amount += exp.amount;
       return acc;
     }, {})
   );
 
-  const byMonth: MonthData[] = Object.values(
-    expenses.reduce((acc: Record<string, MonthData>, exp) => {
-      const month = new Date(exp.date).toLocaleString("default", { month: "short", year: "numeric" });
-      if (!acc[month]) acc[month] = { month, amount: 0 };
-      acc[month].amount += exp.amount;
+  // Keyed by "YYYY-MM" so months sort chronologically, then labeled for the chart
+  const byMonth: MonthData[] = Object.entries(
+    expenses.reduce((acc: Record<string, number>, exp) => {
+      const key = monthKey(exp.date);
+      acc[key] = (acc[key] ?? 0) + exp.amount;
       return acc;
     }, {})
-  );
+  )
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, amount]) => ({ month: monthLabel(key), amount }));
 
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
 

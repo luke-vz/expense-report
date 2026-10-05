@@ -3,22 +3,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-
-interface Expense {
-  id: string;
-  title: string;
-  amount: number;
-  category: string;
-  date: string;
-}
+import type { Expense } from "@/lib/expenses";
+import { useCategories } from "@/lib/useCategories";
+import { currentMonthKey, formatDate, formatMoney, monthKey } from "@/lib/format";
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [category, setCategory] = useState("");
-  const currentDate = new Date();
-  const currentMonth = currentDate.getMonth()+1;
-  const currentYear = currentDate.getFullYear();
-  const [month, setMonth] = useState(`${currentYear}-${currentMonth.toString().padStart(2, '0')}`);
+  const { categories } = useCategories();
+  const [categoryId, setCategoryId] = useState("");
+  const [month, setMonth] = useState(currentMonthKey());
   useEffect(() => {
     const fetchExpenses = async () => {
       const res = await fetch("/api/expenses");
@@ -29,11 +22,8 @@ export default function ExpensesPage() {
   }, []);
 
   const filteredExpenses = expenses.filter((exp) => {
-    const expDate = new Date(exp.date);
-    const matchesCategory = category ? exp.category === category : true;
-    const matchesMonth = month
-      ? expDate.toISOString().slice(0, 7) === month
-      : true;
+    const matchesCategory = categoryId ? exp.categoryId === categoryId : true;
+    const matchesMonth = month ? monthKey(exp.date) === month : true;
     return matchesCategory && matchesMonth;
   });
 
@@ -52,16 +42,14 @@ export default function ExpensesPage() {
       {/* Filtros */}
       <div className="flex gap-4 mb-6">
         <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
           className="border rounded-md p-2"
         >
           <option value="">Todas las categorías</option>
-          <option value="food">Comida</option>
-          <option value="transport">Transporte</option>
-          <option value="utilities">Servicios</option>
-          <option value="entertainment">Ocio</option>
-          <option value="other">Otros</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
         </select>
 
         <input
@@ -89,9 +77,9 @@ export default function ExpensesPage() {
                     filteredExpenses.map((exp) => (
                     <tr key={exp.id} className="border-t">
                         <td className="p-3">{exp.title}</td>
-                        <td className="p-3">${exp.amount.toLocaleString('en-us', {minimumFractionDigits: 2})}</td>
-                        <td className="p-3 capitalize">{exp.category}</td>
-                        <td className="p-3">{new Date(exp.date).toLocaleDateString("es-AR")}</td>
+                        <td className="p-3">${formatMoney(exp.amount)}</td>
+                        <td className="p-3">{exp.category.name}</td>
+                        <td className="p-3">{formatDate(exp.date)}</td>
                         <td className="p-3 flex gap-2">
                         <Link
                             href={`/expenses/${exp.id}/edit`}

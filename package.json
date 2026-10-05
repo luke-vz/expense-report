@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "prisma generate && next build --turbopack && npm run migrate:production",
+    "migrate:production": "if [ \"$VERCEL_ENV\" = \"production\" ]; then prisma migrate deploy; else echo 'Skipping migrations (not a Vercel production build)'; fi",
     "start": "next start",
     "lint": "eslint"
   },

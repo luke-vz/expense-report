@@ -1,9 +1,16 @@
 // lib/expenses.ts
+export interface Category {
+  id: string;
+  name: string;
+  expenseCount?: number;
+}
+
 export interface Expense {
   id: string;
   title: string;
   amount: number;
-  category: string;
+  categoryId: string;
+  category: Category;
   date: string; // ISO string
   currency?: string;
   note?: string | null;
@@ -15,7 +22,7 @@ export interface Expense {
 export interface ExpenseCreate {
   title: string;
   amount: number;
-  category: string;
+  categoryId: string;
   date: string;
   currency?: string;
   note?: string | null;
@@ -23,7 +30,7 @@ export interface ExpenseCreate {
 }
 
 export interface ExpenseFilter {
-  category?: string;
+  categoryId?: string;
   from?: string;
   to?: string;
 }
@@ -35,7 +42,7 @@ const API_BASE = "/api/expenses";
  */
 export async function fetchExpenses(filter?: ExpenseFilter): Promise<Expense[]> {
   const params = new URLSearchParams();
-  if (filter?.category) params.append("category", filter.category);
+  if (filter?.categoryId) params.append("categoryId", filter.categoryId);
   if (filter?.from) params.append("from", filter.from);
   if (filter?.to) params.append("to", filter.to);
 

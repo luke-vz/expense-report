@@ -3,11 +3,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-
-interface Expense {
-  amount: number;
-  date: string;
-}
+import type { Expense } from "@/lib/expenses";
+import { currentMonthKey, formatMoney, monthKey } from "@/lib/format";
 
 export default function HomePage() {
   const [total, setTotal] = useState(0);
@@ -18,15 +15,9 @@ export default function HomePage() {
       const data: Expense[] = await res.json();
 
       // total mes actual
-      const now = new Date();
-      const month = now.getMonth();
-      const year = now.getFullYear();
-
+      const month = currentMonthKey();
       const monthlyTotal = data
-        .filter((exp) => {
-          const d = new Date(exp.date);
-          return d.getMonth() === month && d.getFullYear() === year;
-        })
+        .filter((exp) => monthKey(exp.date) === month)
         .reduce((sum, exp) => sum + exp.amount, 0);
 
       setTotal(monthlyTotal);
@@ -63,7 +54,7 @@ export default function HomePage() {
       {/* Quick stats */}
       <section className="mt-12 bg-secundario border-card shadow rounded-md p-6 text-center">
         <h3 className="text-lg font-semibold text-gray-300">Total del mes</h3>
-        <p className="mt-2 text-3xl font-bold text-gray-500">${total.toLocaleString('en-us', {minimumFractionDigits: 2})}</p>
+        <p className="mt-2 text-3xl font-bold text-gray-500">${formatMoney(total)}</p>
       </section>
     </main>
   );
