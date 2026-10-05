@@ -16,7 +16,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 
 **Riesgo conocido:** la app publicada no tiene login; la API responde a cualquiera. El usuario decidió **posponer el login** (no lo encares sin que lo pida).
 
-**Próximos pasos:** el usuario está revisando el backlog de abajo para priorizarlo; no arranques ítems nuevos sin que elija. Lo recomendado: (1) prolijidad rápida, más poder unir categorías (en prod `Ocio` y `Entretenimiento` parecen duplicadas, y renombrar una como la otra falla por el nombre único); (3) datos confiables: moneda ARS/USD, cuotas, dashboard mensual, clasificación fijo/variable/prescindible.
+**Próximos pasos:** el usuario está revisando el backlog de abajo para priorizarlo; no arranques ítems nuevos sin que elija. Lo recomendado: (1) prolijidad rápida, más poder unir categorías (en prod `Ocio` y `Entretenimiento` parecen duplicadas, y renombrar una como la otra falla por el nombre único); (2) datos confiables: moneda ARS/USD, cuotas, dashboard mensual, clasificación fijo/variable/prescindible.
 
 ### Backlog (sin priorizar por el usuario todavía)
 
