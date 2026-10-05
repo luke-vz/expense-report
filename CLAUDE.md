@@ -18,15 +18,15 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 - Migración `prisma/migrations/20260926033501_categories_decimal_date/` — **editada a mano** para migrar datos (ver Decisiones).
 - Verificado: `tsc` y `eslint` limpios; API probada end-to-end contra la base local; migración probada sobre datos con el formato viejo.
 
-**Bloqueante para llevarlo a producción:** el build de Vercel (`next build`) **no corre migraciones**. El código nuevo y la migración tienen que llegar juntos a producción: si se mergea sin migrar, prod se rompe (busca `categoryId`); si se migra antes de mergear, también (el código viejo busca `category`). Propuesta pendiente de aprobar: correr `prisma migrate deploy` en el build **solo cuando `VERCEL_ENV=production`**.
+**Para llevarlo a producción:** PR de `develop` a `main` abierto. El build ahora corre `prisma migrate deploy` **solo cuando `VERCEL_ENV=production`**, después de `next build` (ver Decisiones). Al 2026-10-05 la base de producción **no tiene datos que conservar** (el usuario autorizó borrarla): el usuario va a correr `prisma migrate reset --force` contra prod antes de mergear. Claude no tiene acceso a las credenciales de prod; esos pasos los hace el usuario.
 
 **Riesgo conocido:** la app publicada no tiene login; la API responde a cualquiera. El usuario decidió **posponer el login** (no lo encares sin que lo pida).
 
-**Próximos pasos:** el usuario está revisando el backlog de abajo para priorizarlo; no arranques ítems nuevos sin que elija. Lo recomendado: (1) commitear y llevar la etapa 1 a prod con la migración coordinada; (2) prolijidad rápida; (3) datos confiables: moneda ARS/USD, cuotas, dashboard mensual, clasificación fijo/variable/prescindible.
+**Próximos pasos:** el usuario está revisando el backlog de abajo para priorizarlo; no arranques ítems nuevos sin que elija. Lo recomendado: (1) confirmar que la etapa 1 quedó andando en prod; (2) prolijidad rápida; (3) datos confiables: moneda ARS/USD, cuotas, dashboard mensual, clasificación fijo/variable/prescindible.
 
 ### Backlog (sin priorizar por el usuario todavía)
 
-- **Deploy/datos:** migración automática solo en prod; base separada para previews (hoy pueden compartir la de prod — sin confirmar); backups; sacar `log: ["query"]` de `lib/prisma.ts` en prod.
+- **Deploy/datos:** la base de Preview no se migra sola (`DATABASE_URL` de Preview es una variable distinta de la de Production; no está confirmado si apuntan a la misma base); backups; sacar `log: ["query"]` de `lib/prisma.ts` en prod.
 - **Seguridad:** login (Auth.js + Google con allowlist de los dos mails — propuesta); validar input de la API (montos ≤ 0, fechas inválidas dan 500).
 - **Prolijidad:** la página de edición usa fondo blanco (no respeta el tema oscuro); unificar formularios de alta/edición; borrar o reutilizar componentes sin usar; Tailwind config v3 que no se aplica; borrar un gasto no chequea `res.ok`; poco contraste en el menú; formato de montos (`$1,500.00` vs `$1.500,00`, a decidir); etiquetas y colores del dashboard (solo 4 colores); `app/OLDfavicon.ico` y SVGs de ejemplo; no hay tests.
 - **Carga:** moneda ARS/USD con totales separados; compras en cuotas (cada cuota imputa a su mes); medio de pago; UI para `note` y foto de ticket (`receiptUrl` existe sin usar); gastos fijos/recurrentes con vencimiento; PWA/carga rápida; importar resúmenes de tarjeta/banco.
@@ -40,6 +40,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 - **`amount` es `Decimal(12,2)`** para no acumular errores de punto flotante en totales. Prisma devuelve `Decimal`, que en JSON sale como string: toda respuesta de gastos pasa por `serializeExpense` para que `amount` llegue como número.
 - **Categorías en tabla, editables por el usuario.** Antes cada página tenía su propia lista hardcodeada y no coincidían (p. ej. `house` solo existía en el alta). Borrar una categoría con gastos se rechaza (409) en vez de cascada, para no perder datos.
 - **Migraciones con datos se escriben a mano.** `prisma migrate dev` genera `DROP COLUMN` + `ADD COLUMN NOT NULL`, que pierde datos y falla con tablas no vacías. Generar con `--create-only`, reescribir el SQL para hacer backfill (ver la migración `categories_decimal_date`), y probarlo sobre una base aparte con datos en el formato viejo antes de aplicarlo.
+- **Migraciones en el build, solo en producción y después de compilar** (`npm run build` → `prisma generate && next build && migrate:production`). Compilar primero hace que un build roto no toque la base; si `migrate deploy` falla, el deploy falla y producción sigue con la versión anterior. Las previews no migran para no tocar bases compartidas.
 - **Las categorías por defecto se siembran en la migración** (no hay seed script), así cualquier base nueva queda usable.
 - **Filtrado y agregación en el cliente:** las páginas traen todos los gastos y filtran en el browser. Alcanza para el volumen de un hogar; no hace falta paginar por ahora.
 
@@ -56,13 +57,13 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 
 ```bash
 npm run dev -- -p 3100   # dev server (en esta máquina 3000 y 3001 los usan otros proyectos)
-npm run build            # build de producción (Turbopack)
+npm run build            # prisma generate + next build (+ migrate deploy si VERCEL_ENV=production)
 npm run lint             # ESLint (next/core-web-vitals + next/typescript)
 npx tsc --noEmit         # chequeo de tipos (no hay script para esto)
 
 npx prisma migrate dev --create-only --name <nombre>   # generar migración para revisarla/editarla
 npx prisma migrate dev                                  # aplicar migraciones pendientes en local
-npx prisma migrate deploy                               # aplicar migraciones en prod (hoy es manual)
+npx prisma migrate deploy                               # lo corre el build de Vercel en producción
 npx prisma studio
 ```
 
