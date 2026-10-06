@@ -8,9 +8,11 @@ App para registrar los gastos del hogar de una pareja con **caja común** (gasto
 
 Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL, Tailwind CSS v4, Recharts, next-auth v4 (Google), Vercel Blob. UI en castellano rioplatense.
 
-## Estado actual (2026-10-05)
+## Estado actual (2026-10-06)
 
-**En producción:** carga rápida de gastos (cuotas, ARS/USD, foto del ticket, **por voz con IA**, **lectura de tickets con IA**), "pre-gastos" (foto ahora, completar después), login con Google restringido a dos mails, app instalable, dashboard por mes y gestión de categorías. El último PR mergeado es el #18 (gasto por voz); verificar con `gh pr list` si hay alguno abierto.
+**En producción:** carga rápida de gastos (cuotas, ARS/USD, foto del ticket, **por voz con IA**), "pre-gastos" (foto ahora, completar después), login con Google restringido a dos mails, app instalable, dashboard por mes y gestión de categorías.
+
+**Último trabajo:** PR #20, **lectura de tickets con IA** (incluye los cambios de docs del #19). Mientras no esté mergeado, la lectura de tickets no está en producción. Verificar con `gh pr list` qué sigue abierto. Después de mergear, conviene que el usuario la pruebe con un ticket real: las pruebas se hicieron con imágenes generadas.
 
 **La base de producción TIENE DATOS REALES** (cientos de gastos desde 2025) y no se puede resetear. Claude no tiene acceso a sus credenciales: cualquier operación directa sobre esa base la hace el usuario. Las migraciones las aplica el build de producción (ver Decisiones).
 
@@ -40,7 +42,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
   - la base de Preview no se migra sola (`DATABASE_URL` de Preview es otra variable; no está confirmado si es otra base);
   - backups de la base de producción;
   - sacar `log: ["query"]` de `lib/prisma.ts` en producción;
-  - no hay tests (`parseAmount`, `splitAmount`/`addMonths` y `shiftMonth` son buenos candidatos).
+  - no hay tests (`parseAmount`, `splitAmount`/`addMonths`, `shiftMonth` y `withoutCompanySuffix` son buenos candidatos).
 
 ### Historial (PRs a `main`)
 
@@ -85,6 +87,8 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
     - `DELETE` con `?scope=group` borra todas las cuotas de la compra; la foto se borra solo si ningún otro gasto la usa.
   - Validación y serialización de gastos: `POST`/`PATCH` validan con `parseExpenseInput` (`lib/validation.ts`) → 400. Las respuestas pasan por `serializeExpense` (`lib/serialize.ts`) para que `amount` sea número.
   - `categories` — lista (con `expenseCount`), crea y renombra. `DELETE` da 409 si la categoría tiene gastos. `POST categories/[id]/merge {targetId}` mueve los gastos y borra la original en una transacción.
+  - `suggestions` — detalles ya usados (sin cuotas repetidas ni detalles iguales al nombre de la categoría), con cantidad de usos y la última categoría. Alimenta el autocompletado y los atajos "Frecuentes".
+  - `pending`, `pending/[id]`, `photos/[...key]` — ver Pendientes y Fotos.
   - `voice` — `POST {text, today}` → `expenseFromSentence`. `receipts/read` — `POST` multipart `{photo, today}` → `expenseFromReceipt`. Las dos devuelven `{amount, currency, date, title, categoryId, installments}`, no guardan nada y sin `ANTHROPIC_API_KEY` responden 503.
 - **IA** (`lib/expenseAi.ts`, compartido por la voz, los tickets y los pendientes):
   - Claude Haiku 4.5 con salida estructurada (`output_config.format` con JSON schema).
@@ -96,8 +100,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
     - el nombre comercial corto: `withoutCompanySuffix` saca "S.A.", "S.R.L.", "C.I.C.S.A.", etc.;
     - en transferencias, el motivo sirve para elegir la categoría;
     - si no es un comprobante, devuelve nulls.
-  - `suggestions` — detalles ya usados (sin cuotas repetidas ni detalles iguales al nombre de la categoría), con cantidad de usos y la última categoría. Alimenta el autocompletado y los atajos "Frecuentes".
-  - `pending`, `pending/[id]`, `photos/[...key]` — ver Pendientes y Fotos.
+  - Costo aproximado: una fracción de centavo de dólar por frase y ~0,3 centavos por foto.
 - **Páginas** — todas client components (`"use client"`) que hacen `fetch` en `useEffect` y filtran/agregan en el cliente:
   - `/` — total del mes por moneda, "Cuotas a futuro", cartel de pendientes, "Cargar gasto" + 📷 y últimos 5 gastos (sin cuotas futuras).
   - `/expenses` — tarjetas agrupadas por día con el total del día por moneda; filtros de categoría y mes; muestra quién lo cargó y 📎 si tiene foto. Tocar un gasto lo edita.
@@ -138,18 +141,21 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
     - El 409 de duplicado se confirma con `confirm()`; si se cancela con una foto adjunta, se borra el pendiente subido para esa foto.
   - En la edición, eliminar usa `lib/deleteExpense.ts`, que pregunta si borrar la cuota sola o todas.
 - **Layout** (`app/layout.tsx`):
-  - `Header`: título y "Salir"; links solo en desktop.
+  - `Header`: título y "Salir"; links (Home, Gastos, Nuevo Gasto, Pendientes, Dashboard, Categorías) solo en desktop.
   - `BottomNav`: solo en el celular, con Inicio · Gastos · **+** · Dashboard · Pendientes (con globito). Se oculta en `/login` y en las pantallas del formulario, que fijan sus propios botones abajo.
 - **Pendientes ("pre-gasto")**:
+  - `PendingExpense` (foto, monto y nota opcionales, `createdBy`, y lo que leyó la IA en `aiStatus` + `suggested*`) está separado de `Expense` para que nunca entre en totales ni gráficos.
+  - Captura: `components/CaptureButton.tsx` usa un input de archivo **sin** `capture`, así el teléfono ofrece cámara o galería (sirve para capturas de Mercado Pago o home banking). Comprime en el cliente (`lib/compressImage.ts`: lado máximo 1600 px, JPEG 0,75 → ~150-400 KB) y sube a `POST /api/pending` (multipart).
   - **Lectura con IA en segundo plano:**
     - `POST /api/pending` con foto crea el pendiente con `aiStatus: "reading"` y responde enseguida.
-    - Con `after()` de Next, Haiku lee la foto y guarda `suggested*` (`aiStatus` pasa a `"done"` o `"failed"`). Usa `updateMany`, así es un no-op si el pendiente ya se completó.
-    - La lista muestra lo leído y se refresca cada 3 s mientras haya alguno en `"reading"`.
-    - Al completar, lo tipeado al capturar gana sobre lo sugerido; si todavía está leyendo, espera hasta ~30 s mostrando "Leyendo el ticket…", con "Completar a mano".
+    - Con `after()` de Next, Haiku lee la foto y guarda `suggested*` (`aiStatus` pasa a `"done"` o `"failed"`). Usa `updateMany`, así es un no-op si el pendiente ya se completó o se descartó.
+    - La lista muestra lo leído ("$12,500.50 · Coto · Comida") y se refresca cada 3 s mientras haya alguno en `"reading"`.
     - La foto que se adjunta en Nuevo gasto para guardarla en el momento se sube con `skipAi=1`: ya se leyó en el form y no se paga dos veces.
-  - `PendingExpense` (foto, monto y nota opcionales, `createdBy`) está separado de `Expense` para que nunca entre en totales ni gráficos.
-  - Captura: `components/CaptureButton.tsx` usa un input de archivo **sin** `capture`, así el teléfono ofrece cámara o galería (sirve para capturas de Mercado Pago o home banking). Comprime en el cliente (`lib/compressImage.ts`: lado máximo 1600 px, JPEG 0,75 → ~150-400 KB) y sube a `POST /api/pending` (multipart).
-  - Completar: abre `/expenses/new?pending=<id>` con la foto, el monto, la nota y la fecha de captura precargados. `POST /api/expenses` con `pendingId` crea el gasto y borra el pendiente en una transacción; la foto pasa a `receiptUrl`.
+  - Completar: abre `/expenses/new?pending=<id>` con la foto y los campos precargados.
+    - Lo tipeado al capturar (monto, nota) gana sobre lo que leyó la IA (total, comercio, categoría, fecha del ticket, cuotas).
+    - Sin fecha leída, se usa la de captura.
+    - Si todavía está leyendo, espera hasta ~30 s (15 intentos cada 2 s) mostrando "Leyendo el ticket…", con "Completar a mano".
+    - `POST /api/expenses` con `pendingId` crea el gasto y borra el pendiente en una transacción; la foto pasa a `receiptUrl`.
   - Contador: `lib/usePendingCount.ts`, que se refresca con `notifyPendingChanged()`, alimenta el globito y el cartel de la home.
 - **Fotos** (`lib/photos.ts`):
   - En producción viven en un Vercel Blob **privado**. Nunca se expone la URL del blob: se sirven por `/api/photos/<key>`, detrás del login. Se ven dentro de la app con `components/PhotoViewer.tsx`.
@@ -242,6 +248,11 @@ Hay que borrar todo lo que se cree al probar.
 
 **Probar la voz sin micrófono:** en Playwright, `addInitScript` que reemplace **tanto** `window.SpeechRecognition` como `window.webkitSpeechRecognition` (Chromium trae el primero y el código lo prefiere) por una clase falsa que emita `onresult`/`onend`. `/api/voice` llama a Haiku de verdad con la key del `.env`: cada llamada cuesta una fracción de centavo.
 
+**Probar la lectura de tickets:**
+- Generar imágenes con ImageMagick. Las que se usaron: un ticket con subtotal, IVA, descuento y vuelto (el total correcto es otro número), una captura de transferencia de Mercado Pago con motivo, una factura de servicio y una foto que no es un comprobante.
+- Leer cada una **varias veces** (`/api/receipts/read`) para medir la estabilidad: con una sola lectura no se ve la variación del modelo (así apareció el "Coto C.I.C.S.A." 1 de cada 5 veces).
+- Cada lectura cuesta ~0,3 centavos.
+
 **Probar con sesión sin pasar por Google:** `node --env-file=.env scripts/dev-session-cookie.mjs [email] [nombre]` imprime una cookie firmada con el `NEXTAUTH_SECRET` local (`curl -b "$(...)"` o `context.addCookies` en Playwright). Sin cookie, toda la API da 401.
 
 **Base local:** contenedor de podman `expense-report-pg` (Postgres 17, puerto 5434). `.env` (gitignoreado; plantilla en `.env.example`) con `DATABASE_URL="postgresql://expense:expense@localhost:5434/expense_report"` y las variables de auth y Blob. Si el contenedor no existe:
@@ -265,5 +276,5 @@ Si el contenedor existe pero está apagado (pasa después de reiniciar la máqui
 - **`params` es una Promise** en los route handlers de Next 15: tiparlo `{ params: Promise<{ id: string }> }` y hacer `await`.
 - **Fechas:** ver Decisiones. Para el valor por defecto de un `<input type="date">` usar `todayISO()`, no `toISOString()` (de noche da la fecha de mañana).
 - **Tailwind:** v4 vía `@import "tailwindcss"` en `app/globals.css`; no hay `tailwind.config.js` ni modo claro. Las clases propias de `globals.css` no admiten variantes (`hover:bg-secundario` no funciona): para hover, usar utilidades de Tailwind (p. ej. `hover:bg-neutral-800`).
-- **Probar en "celular":** Playwright con `executablePath: "/usr/bin/chromium-browser"` (la versión de navegador de Playwright no está instalada), viewport 390×844, `isMobile` y `hasTouch`. Recharts anima las barras al entrar y los chips tienen `transition-colors`: esperar antes de capturar (~2 s en el dashboard).
+- **Probar en "celular":** Playwright con `executablePath: "/usr/bin/chromium-browser"` (la versión de navegador de Playwright no está instalada), viewport 390×844, `isMobile` y `hasTouch`. Recharts anima las barras al entrar y los chips tienen `transition-colors`: esperar antes de capturar (~2 s en el dashboard). Las categorías del formulario cargan un instante después de la página: esperar a que estén (por ejemplo, un chip con `aria-pressed="true"`) antes de leer el formulario o tocar Guardar; si no, la prueba ve la categoría vacía y el guardado pide elegirla.
 - **Editar este archivo con scripts:** verificar que cada reemplazo se aplicó (por ejemplo, con `assert` en Python). Un reemplazo que no encuentra el texto falla en silencio; así se perdió una vez la sección de Arquitectura.

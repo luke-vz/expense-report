@@ -13,7 +13,7 @@ Producción: https://expense-report-mu.vercel.app (requiere una cuenta de Google
   - fecha Hoy/Ayer;
   - "Guardar y otro" con "Deshacer".
 - **Cuotas:** se carga el total y la cantidad, y se crea una cuota por mes ("Heladera 2/6"). La home muestra lo comprometido a futuro.
-- **Gasto por voz:** un toque en 🎤, decís "gasté 1500 en el supermercado" y el formulario se completa solo (lo interpreta Claude Haiku); después, Guardar.
+- **Gasto por voz:** un toque en 🎤, decís "gasté 1500 en el supermercado" y el formulario se completa solo (lo interpreta Claude Haiku); después, Guardar. La primera vez, el teléfono pide permiso de micrófono y de reconocimiento de voz.
 - **Fotos de tickets leídas con IA:** al adjuntar la foto (ticket, factura o captura de Mercado Pago) se completan solos el total, el comercio, la categoría y la fecha. También se puede guardar la foto como **pendiente** y completarla después: la IA la lee en segundo plano.
 - **Aviso de duplicados:** si alguien ya cargó el mismo monto, en la misma categoría y el mismo día.
 - **Listado** agrupado por día, con quién cargó cada gasto.
@@ -54,7 +54,7 @@ node --env-file=.env scripts/dev-session-cookie.mjs tu@mail.com "Tu Nombre"
 | `NEXTAUTH_URL` | URL pública de la app (`http://localhost:3100` en local) |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Cliente OAuth de Google Cloud |
 | `ALLOWED_EMAILS` | Mails que pueden entrar, separados por coma |
-| `ANTHROPIC_API_KEY` | Gasto por voz y lectura de tickets (Claude Haiku). Con límite de gasto en la cuenta de Anthropic |
+| `ANTHROPIC_API_KEY` | Gasto por voz y lectura de tickets (Claude Haiku). Con límite de gasto en la cuenta de Anthropic; el costo es de centavos por mes (fracción de centavo por frase, ~0,3 centavos por foto). Sin la key, la app funciona igual, sin esas dos funciones |
 | `BLOB_STORE_ID` / `BLOB_READ_WRITE_TOKEN` | Almacenamiento de fotos en Vercel Blob. Sin ninguna, las fotos se guardan en `./.uploads` |
 
 En Google Cloud Console, el cliente OAuth necesita estas URIs de redirección:
