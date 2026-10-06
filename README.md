@@ -13,6 +13,7 @@ Producción: https://expense-report-mu.vercel.app (requiere una cuenta de Google
   - fecha Hoy/Ayer;
   - "Guardar y otro" con "Deshacer".
 - **Cuotas:** se carga el total y la cantidad, y se crea una cuota por mes ("Heladera 2/6"). La home muestra lo comprometido a futuro.
+- **Gasto por voz:** un toque en 🎤, decís "gasté 1500 en el supermercado" y el formulario se completa solo (lo interpreta Claude Haiku); después, Guardar.
 - **Fotos de tickets:** se adjuntan al cargar, o se guardan como **pendientes** para completar después (cámara o galería, también capturas de pantalla).
 - **Aviso de duplicados:** si alguien ya cargó el mismo monto, en la misma categoría y el mismo día.
 - **Listado** agrupado por día, con quién cargó cada gasto.
@@ -22,7 +23,7 @@ Producción: https://expense-report-mu.vercel.app (requiere una cuenta de Google
 
 ## Stack
 
-Next.js 15 (App Router) · React 19 · Prisma 6 + PostgreSQL · Tailwind CSS 4 · Recharts · next-auth 4 (Google) · Vercel Blob (fotos, privado) · desplegado en Vercel.
+Next.js 15 (App Router) · React 19 · Prisma 6 + PostgreSQL · Tailwind CSS 4 · Recharts · next-auth 4 (Google) · Vercel Blob (fotos, privado) · Claude Haiku (gasto por voz) · desplegado en Vercel.
 
 ## Desarrollo local
 
@@ -53,6 +54,7 @@ node --env-file=.env scripts/dev-session-cookie.mjs tu@mail.com "Tu Nombre"
 | `NEXTAUTH_URL` | URL pública de la app (`http://localhost:3100` en local) |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Cliente OAuth de Google Cloud |
 | `ALLOWED_EMAILS` | Mails que pueden entrar, separados por coma |
+| `ANTHROPIC_API_KEY` | Interpretar el gasto por voz (Claude Haiku). Con límite de gasto en la cuenta de Anthropic |
 | `BLOB_STORE_ID` / `BLOB_READ_WRITE_TOKEN` | Almacenamiento de fotos en Vercel Blob. Sin ninguna, las fotos se guardan en `./.uploads` |
 
 En Google Cloud Console, el cliente OAuth necesita estas URIs de redirección:

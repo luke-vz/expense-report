@@ -17,7 +17,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 **Foco y decisiones del usuario — respetarlas:**
 - El foco actual es **pulir la carga de gastos**.
 - **Ahorro y presupuestos (ingresos, tasa de ahorro, topes por categoría, metas) están en pausa** por decisión del usuario: no proponerlos hasta que los pida.
-- **IA:** el usuario pidió el **gasto por voz con IA** (2026-10-06); la lectura de tickets con IA sigue pospuesta. Reglas para cualquier uso de IA: modelo más barato (Claude Haiku 4.5), `ANTHROPIC_API_KEY` cargada por el usuario directo en Vercel (nunca pegada en el chat) y con límite de gasto mensual.
+- **IA:** en uso para el **gasto por voz** (PR #18); la lectura de tickets con IA sigue pospuesta. Reglas para cualquier uso de IA: modelo más barato (Claude Haiku 4.5), `ANTHROPIC_API_KEY` cargada por el usuario directo en Vercel (nunca pegada en el chat) y con límite de gasto mensual.
 - **La carga no puede sumar pasos.** La vara es: atajo de Frecuentes + monto + Guardar (~3 toques). El dictado por teclado (PR #16) se revirtió (PR #17) porque el usuario lo encontró complejo: campo extra + micrófono del teclado + "Completar" + revisar sumaban pasos.
 - No arrancar ítems del backlog sin que el usuario elija.
 - Formato de montos `$1,500.00`: decidido, no proponer `$1.500,00`. Solo login con Google (Apple requiere cuenta paga de developer). Monedas separadas, sin cotización.
@@ -32,12 +32,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
   - gastos fijos/recurrentes con vencimiento;
   - importar resúmenes de tarjeta/banco;
   - carga sin conexión (service worker + cola local).
-- **Gasto por voz con IA (próximo, pedido por el usuario):** decir "gasté 1500 en el supermercado" y que quede listo para guardar. Requisitos:
-  - **un solo toque**: botón 🎤 que escucha directo, sin el teclado ni un botón "Completar";
-  - la IA (Claude Haiku 4.5) entiende frases libres y saca monto, categoría, fecha y detalle;
-  - se confirma con Guardar.
-
-  Claude no recibe audio: hay que transcribir antes, con la Web Speech API del navegador (gratis, poco confiable en la PWA de iOS) o grabando audio y transcribiendo en el servidor (otro proveedor). A decidir con el usuario. Frases reales del usuario: "Gasté 1500 en el supermercado", "500 en colectivo", "150 en helado".
+- **Gasto por voz — falta confirmar en iPhone:** implementado en el PR #18 con la Web Speech API del navegador. Los dos usan **iPhone**, y en la PWA de iOS esa API es poco confiable. Si el usuario reporta "Este teléfono no permite reconocimiento de voz desde la app" u otro error, el plan B es grabar audio con `MediaRecorder` y transcribir en el servidor (otro proveedor de speech-to-text). `/api/voice` no cambia: sigue recibiendo texto.
 - **Pre-gasto, etapas que faltan:** (2) lectura del ticket con IA (pospuesta); (3) notificación push diaria de pendientes (service worker + tarea diaria de Vercel; en iPhone solo con la app instalada).
 - **Análisis:** categorías marcadas fijo/variable/prescindible; subcategorías o etiquetas; búsqueda por texto; equivalente en USD por fecha (inflación).
 - **Ahorro (en pausa):** ingresos y tasa de ahorro; presupuestos por categoría con alertas; metas de ahorro; exportar CSV/Excel.
@@ -65,6 +60,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 | #15 | Pulido de la carga: sugerencias, frecuentes, duplicados, quién cargó, listado por día |
 | #16 | Dictado por teclado sin IA — **revertido en #17** (sumaba pasos) |
 | #17 | Revierte #16 |
+| #18 | Gasto por voz con IA: 🎤 de un toque + Claude Haiku |
 
 ## Arquitectura
 
@@ -88,6 +84,11 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
     - `DELETE` con `?scope=group` borra todas las cuotas de la compra; la foto se borra solo si ningún otro gasto la usa.
   - Validación y serialización de gastos: `POST`/`PATCH` validan con `parseExpenseInput` (`lib/validation.ts`) → 400. Las respuestas pasan por `serializeExpense` (`lib/serialize.ts`) para que `amount` sea número.
   - `categories` — lista (con `expenseCount`), crea y renombra. `DELETE` da 409 si la categoría tiene gastos. `POST categories/[id]/merge {targetId}` mueve los gastos y borra la original en una transacción.
+  - `voice` — `POST {text, today}`. Claude Haiku 4.5 convierte una frase en `{amount, currency, date, title, categoryId, installments}`:
+    - Usa salida estructurada (`output_config.format` con JSON schema).
+    - El prompt incluye las categorías (id: nombre), los últimos ~60 detalles con su categoría (para aprender los hábitos de la casa) y la fecha de hoy, que manda el cliente: el servidor está en UTC y de noche iría un día adelantado.
+    - La respuesta del modelo **se valida** antes de devolverla: montos positivos, categoría existente, fecha no futura y cuotas entre 2 y 60.
+    - Sin `ANTHROPIC_API_KEY` responde 503. No guarda nada.
   - `suggestions` — detalles ya usados (sin cuotas repetidas ni detalles iguales al nombre de la categoría), con cantidad de usos y la última categoría. Alimenta el autocompletado y los atajos "Frecuentes".
   - `pending`, `pending/[id]`, `photos/[...key]` — ver Pendientes y Fotos.
 - **Páginas** — todas client components (`"use client"`) que hacen `fetch` en `useEffect` y filtran/agregan en el cliente:
@@ -107,6 +108,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 - **Formulario de carga** (`components/ExpenseForm.tsx`, el único formulario de gastos):
   - Diseño: monto grande arriba con ARS/USD, categorías como botones ordenadas por uso, detalle opcional, fecha Hoy/Ayer/otra y acciones fijas abajo.
   - Props opcionales:
+    - `allowVoice`: botón "🎤 Decí el gasto" (`components/VoiceButton.tsx`) — ver abajo;
     - `showShortcuts`: atajos "Frecuentes" (los 5 detalles más usados con 2 usos o más; completan detalle y categoría y enfocan el monto);
     - `allowInstallments`: selector de cuotas con vista previa;
     - `allowPhoto`: "📷 Foto del ticket" (más abajo);
@@ -114,6 +116,12 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
     - `onDelete`: "Eliminar gasto";
     - `photoUrl`: foto ya existente.
   - El autocompletado del detalle ignora tildes y mayúsculas, y elegir una sugerencia completa también la categoría.
+  - **Voz:**
+    1. Un toque en 🎤 arranca la Web Speech API (`SpeechRecognition`/`webkitSpeechRecognition`, `es-AR`, `continuous: false`, así corta sola al dejar de hablar) y muestra lo que va escuchando.
+    2. El texto va a `/api/voice` y el resultado completa el formulario, mostrando "Entendí: …" y qué falta.
+    3. Se guarda con Guardar: 2 toques en total.
+
+    Si el navegador no tiene la API, o no hay permiso de micrófono, muestra el motivo en vez de fallar en silencio.
   - En el alta (`app/expenses/new/page.tsx`):
     - "Guardar y otro" remonta el form (cambiando `key`) y muestra un aviso con "Deshacer".
     - Con `?pending=<id>` completa un pendiente.
@@ -161,6 +169,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
   - Las cuotas futuras cuentan en los meses que vienen ("Cuotas a futuro" en la home) y se excluyen de "Últimos gastos", porque la API ordena por fecha descendente y quedarían arriba.
 - **Monedas separadas, nunca convertidas.** Solo `ARS` y `USD` (`CURRENCIES` en `lib/validation.ts`); USD se usa sobre todo para suscripciones. Los totales siempre se muestran por moneda.
 - **Montos tipeados en formato argentino.** El input de monto es `type="text" inputMode="decimal"` (no `type="number"`, que según el teclado rechaza la coma) y se interpreta con `parseAmount`: coma = decimal, puntos = miles. Sin coma, un punto seguido de exactamente 3 dígitos es de miles (`1.500` → 1500); si no, es decimal (`12.5`). La API recibe siempre un número.
+- **Voz: transcribir en el navegador, interpretar con IA.** El dictado por teclado sin IA (#16) se revirtió por sumar pasos. La vara es "un toque y Guardar". Claude no recibe audio, por eso la transcripción la hace el navegador (gratis). Haiku interpreta frases libres ("le pagué 25 lucas a la plomera ayer" → $25.000 · Plomera · Casa · ayer) y usa los hábitos de la casa para elegir la categoría. Cada frase cuesta una fracción de centavo.
 - **Duplicados se chequean en el servidor**, no en el cliente: así detecta también lo que cargó la otra persona desde su teléfono.
 - **Título opcional en la UI:** si queda vacío, el form manda el nombre de la categoría. La API sigue exigiendo `title`. Por eso `/api/suggestions` ignora los títulos iguales al nombre de la categoría.
 - **Dashboard sin paleta categórica:**
@@ -215,6 +224,8 @@ No hay tests ni test runner configurado. Las verificaciones se hacen con:
 - Playwright en viewport de celular (ver Gotchas).
 
 Hay que borrar todo lo que se cree al probar.
+
+**Probar la voz sin micrófono:** en Playwright, `addInitScript` que reemplace **tanto** `window.SpeechRecognition` como `window.webkitSpeechRecognition` (Chromium trae el primero y el código lo prefiere) por una clase falsa que emita `onresult`/`onend`. `/api/voice` llama a Haiku de verdad con la key del `.env`: cada llamada cuesta una fracción de centavo.
 
 **Probar con sesión sin pasar por Google:** `node --env-file=.env scripts/dev-session-cookie.mjs [email] [nombre]` imprime una cookie firmada con el `NEXTAUTH_SECRET` local (`curl -b "$(...)"` o `context.addCookies` en Playwright). Sin cookie, toda la API da 401.
 
