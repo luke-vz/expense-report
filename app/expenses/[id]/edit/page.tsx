@@ -6,6 +6,7 @@ import { useRouter, useParams } from "next/navigation";
 import ExpenseForm, { ExpenseFormValues, ExpenseSubmit } from "@/components/ExpenseForm";
 import type { Expense } from "@/lib/expenses";
 import { toAmountInput } from "@/lib/format";
+import { confirmAndDeleteExpense } from "@/lib/deleteExpense";
 
 export default function EditExpensePage() {
   const router = useRouter();
@@ -13,6 +14,7 @@ export default function EditExpensePage() {
 
   const [initialValues, setInitialValues] = useState<ExpenseFormValues | null>(null);
   const [loadError, setLoadError] = useState("");
+  const [expense, setExpense] = useState<Expense | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [installment, setInstallment] = useState<string | null>(null);
 
@@ -26,6 +28,7 @@ export default function EditExpensePage() {
           return;
         }
         const expense: Expense = await res.json();
+        setExpense(expense);
         setReceiptUrl(expense.receiptUrl ?? null);
         if (expense.installmentNumber && expense.installmentCount) {
           setInstallment(`${expense.installmentNumber}/${expense.installmentCount}`);
@@ -65,6 +68,9 @@ export default function EditExpensePage() {
         heading={installment ? `Editar cuota ${installment}` : "Editar gasto"}
         initialValues={initialValues}
         photoUrl={receiptUrl}
+        onDelete={async () => {
+          if (expense && (await confirmAndDeleteExpense(expense))) router.push("/expenses");
+        }}
         submitLabel="Actualizar"
         onSubmit={updateExpense}
       />

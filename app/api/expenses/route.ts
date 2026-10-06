@@ -6,6 +6,8 @@ import { parseExpenseInput } from "@/lib/validation";
 import { photoUrl } from "@/lib/photos";
 import { MAX_INSTALLMENTS, addMonths, splitAmount } from "@/lib/installments";
 import { randomUUID } from "node:crypto";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export interface ExpenseFilter {
   categoryId?: string;
@@ -58,6 +60,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Amount too small for that many installments" }, { status: 400 });
   }
 
+  // Two people load expenses: before creating, look for the same amount, currency, category
+  // and day (e.g. the other one already loaded it). The client confirms and retries with
+  // allowDuplicate: true. Purchases in installments are not checked.
+  if (installments === 1 && body?.allowDuplicate !== true) {
+    const duplicate = await prisma.expense.findFirst({
+      where: {
+        amount: data.amount,
+        currency: data.currency ?? "ARS",
+        categoryId: data.categoryId,
+        date: data.date,
+        installmentGroupId: null,
+      },
+      include: { category: true },
+    });
+    if (duplicate) {
+      return NextResponse.json(
+        { error: "Possible duplicate", duplicate: serializeExpense(duplicate) },
+        { status: 409 }
+      );
+    }
+  }
+
+  const session = await getServerSession(authOptions);
+  const createdBy = { createdBy: session?.user?.email ?? null, createdByName: session?.user?.name ?? null };
+
   try {
     const expense = await prisma.$transaction(async (tx) => {
       let receiptUrl = data.receiptUrl;
@@ -67,7 +94,7 @@ export async function POST(req: NextRequest) {
       }
       if (installments === 1) {
         return tx.expense.create({
-          data: { ...data, receiptUrl } as Prisma.ExpenseUncheckedCreateInput,
+          data: { ...data, ...createdBy, receiptUrl } as Prisma.ExpenseUncheckedCreateInput,
           include: { category: true },
         });
       }
@@ -81,6 +108,7 @@ export async function POST(req: NextRequest) {
           await tx.expense.create({
             data: {
               ...data,
+              ...createdBy,
               receiptUrl,
               amount: new Prisma.Decimal(amounts[i].toFixed(2)),
               date: new Date(addMonths(firstDay, i)),

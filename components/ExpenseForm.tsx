@@ -1,13 +1,18 @@
 // components/ExpenseForm.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import PhotoViewer from "@/components/PhotoViewer";
 import { useCategories } from "@/lib/useCategories";
 import { daysAgoISO, formatAmount, monthKey, monthLabel, parseAmount } from "@/lib/format";
 import { MAX_INSTALLMENTS, addMonths, splitAmount } from "@/lib/installments";
 import { compressImage } from "@/lib/compressImage";
+import type { Suggestion } from "@/lib/expenses";
+
+const normalize = (text: string) =>
+  text.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const SHORTCUTS = 5;
 
 export interface ExpenseFormValues {
   title: string; // optional: empty means "use the category name"
@@ -43,6 +48,10 @@ interface ExpenseFormProps {
   autoFocusAmount?: boolean;
   /** Shows the "Cuotas" picker (new expenses only: an existing installment is edited on its own). */
   allowInstallments?: boolean;
+  /** Shows an "Eliminar gasto" button at the end (edit screen). */
+  onDelete?: () => void;
+  /** Shows the "Frecuentes" shortcuts (most used titles) above the categories. */
+  showShortcuts?: boolean;
   /** Shows "📷 Foto del ticket" to attach a receipt photo while creating the expense. */
   allowPhoto?: boolean;
   /** With a photo attached, offers saving it as pending ("completar después"). */
@@ -63,6 +72,8 @@ export default function ExpenseForm({
   autoFocusAmount = false,
   allowInstallments = false,
   allowPhoto = false,
+  showShortcuts = false,
+  onDelete,
   onSaveAsPending,
   photoUrl,
   onSubmit,
@@ -72,6 +83,29 @@ export default function ExpenseForm({
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [installments, setInstallments] = useState(1);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [titleFocused, setTitleFocused] = useState(false);
+  const amountRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetch("/api/suggestions").then(async (res) => res.ok && setSuggestions(await res.json()));
+  }, []);
+
+  // Typing in "Detalle": up to 4 known titles containing the text (accents/case ignored).
+  // "cafe" still offers "Café": picking it fixes the spelling and sets the category.
+  const query = normalize(form.title);
+  const matches =
+    titleFocused && query
+      ? suggestions.filter((s) => normalize(s.title).includes(query) && s.title !== form.title.trim()).slice(0, 4)
+      : [];
+  const shortcuts = suggestions.filter((s) => s.count >= 2).slice(0, SHORTCUTS);
+
+  // Picking a known title also picks the category it was used with last time
+  const applySuggestion = (suggestion: Suggestion) => {
+    const knownCategory = categories.some((c) => c.id === suggestion.categoryId);
+    setForm({ ...form, title: suggestion.title, categoryId: knownCategory ? suggestion.categoryId : form.categoryId });
+    setError("");
+  };
   const [photo, setPhoto] = useState<Blob | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [processingPhoto, setProcessingPhoto] = useState(false);
@@ -246,6 +280,7 @@ export default function ExpenseForm({
             value={form.amount}
             onChange={(e) => set("amount", e.target.value)}
             autoFocus={autoFocusAmount}
+            ref={amountRef}
             // Grows with the typed amount so the "$" stays next to the number
             style={{ width: `${Math.max(form.amount.length, 1) + 0.5}ch` }}
             className="max-w-full bg-transparent text-5xl font-bold outline-none placeholder:text-gray-600"
@@ -266,6 +301,27 @@ export default function ExpenseForm({
           </button>
         ))}
       </div>
+
+      {showShortcuts && shortcuts.length > 0 && (
+        <fieldset className="mt-8">
+          <legend className="text-sm text-gray-400 mb-2">Frecuentes</legend>
+          <div className="flex flex-wrap gap-2">
+            {shortcuts.map((s) => (
+              <button
+                key={s.title}
+                type="button"
+                onClick={() => {
+                  applySuggestion(s);
+                  amountRef.current?.focus();
+                }}
+                className={chip(normalize(form.title) === normalize(s.title))}
+              >
+                {s.title}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+      )}
 
       <fieldset className="mt-8">
         <legend className="text-sm text-gray-400 mb-2">Categoría</legend>
@@ -290,10 +346,30 @@ export default function ExpenseForm({
           type="text"
           value={form.title}
           onChange={(e) => set("title", e.target.value)}
+          onFocus={() => setTitleFocused(true)}
+          // Delay so a tap on a suggestion lands before the list disappears
+          onBlur={() => setTimeout(() => setTitleFocused(false), 150)}
+          autoComplete="off"
           placeholder="Ej: súper, nafta, farmacia"
           className="bg-input mt-1 block w-full rounded-md p-3"
         />
       </label>
+      {matches.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2" aria-label="Sugerencias">
+          {matches.map((s) => (
+            <button
+              key={s.title}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()} // keep the input focused
+              onClick={() => applySuggestion(s)}
+              className={chip(false)}
+            >
+              {s.title}
+              <span className="ml-1 text-gray-500">· {categories.find((c) => c.id === s.categoryId)?.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <fieldset className="mt-6">
         <legend className="text-sm text-gray-400 mb-2">Fecha</legend>
@@ -348,6 +424,12 @@ export default function ExpenseForm({
             </p>
           )}
         </fieldset>
+      )}
+
+      {onDelete && (
+        <button type="button" onClick={onDelete} disabled={saving} className="mt-10 w-full py-3 text-red-400">
+          Eliminar gasto
+        </button>
       )}
 
       <div className="fixed bottom-0 inset-x-0 z-40 flex gap-3 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-[#121212] border-t border-[#2b2b2b] md:static md:mt-8 md:p-0 md:border-0 md:bg-transparent">
