@@ -61,3 +61,15 @@ model PendingExpense {
   suggestedDate         DateTime? @db.Date
   suggestedInstallments Int?
 }
+
+// Personal keys for the iPhone Atajos (Siri / widget) shortcut, which can't do the Google
+// login. Only a SHA-256 hash is stored; the key itself is shown once when created.
+model ApiToken {
+  id         String    @id @default(uuid())
+  tokenHash  String    @unique
+  email      String    // owner; must still be in ALLOWED_EMAILS for the key to work
+  name       String?
+  label      String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+}
