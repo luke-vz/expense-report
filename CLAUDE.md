@@ -14,7 +14,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 
 **A confirmar con el usuario:**
 - La lectura de tickets (PR #20) se probó con imágenes generadas. Falta que la pruebe con tickets reales (arrugados, con poca luz, capturas de su banco).
-- El atajo de Siri/widget (PR #22) se probó llamando al endpoint como lo haría el iPhone. Falta que el usuario arme el atajo en Atajos siguiendo la guía de `/shortcuts` y confirme que anda.
+- El atajo de Siri/widget: la primera guía (PR #22) no le resultó clara al usuario y el atajo falló **en el teléfono, sin llegar nunca al servidor** (los logs de Vercel no tenían ningún pedido a `/api/shortcuts/voice`). El PR #24 simplifica el armado (la clave va en la URL, sin encabezados), agrega "Probar" y reescribe los pasos. Falta que el usuario lo vuelva a intentar y confirme.
 
 **La base de producción TIENE DATOS REALES** (cientos de gastos desde 2025) y no se puede resetear. Claude no tiene acceso a sus credenciales: cualquier operación directa sobre esa base la hace el usuario. Las migraciones las aplica el build de producción (ver Decisiones).
 
@@ -70,6 +70,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 | #21 | Docs: estado tras la lectura de tickets |
 | #22 | Gasto por voz desde Siri/widget (atajo de Atajos + claves personales) |
 | #23 | Barra inferior en todas las pantallas; sin encabezado en el celular |
+| #24 | Atajo de Siri más simple: clave en la URL, cualquier formato de cuerpo, "Probar" sin guardar |
 
 ## Arquitectura
 
@@ -167,9 +168,9 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
     - `POST /api/expenses` con `pendingId` crea el gasto y borra el pendiente en una transacción; la foto pasa a `receiptUrl`.
   - Contador: `lib/usePendingCount.ts`, que se refresca con `notifyPendingChanged()`, alimenta el globito y el cartel de la home.
 - **Atajos de iPhone (Siri / widget / botón de acción)**, en `/shortcuts`:
-  - El atajo "Anotar gasto" de la app Atajos hace "Dictar texto" → `POST /api/shortcuts/voice` → "Mostrar notificación". La guía para armarlo está en la página, con la URL y la clave para copiar.
-  - **Claves personales** (`ApiToken`, `lib/apiTokens.ts`): `gst_` + 32 bytes aleatorios. Se guarda **solo el hash SHA-256** y la clave se muestra una vez. El atajo la manda como `Authorization: Bearer gst_…`. `authenticateToken` además exige que el dueño siga en `ALLOWED_EMAILS` y actualiza `lastUsedAt`.
-  - `POST /api/shortcuts/voice` recibe `{ text }` en JSON (o la frase como texto plano) y responde **texto plano en castellano**, que el atajo muestra como notificación. La fecha es `argentinaToday()`.
+  - El atajo "Anotar gasto" de la app Atajos hace "Dictar texto" → "Obtener contenido de URL" (POST, cuerpo JSON `text` = Texto dictado) → "Mostrar notificación". La página genera **una URL con la clave adentro** (`/api/shortcuts/voice?key=gst_…`): es lo único que hay que pegar, sin encabezados. Tiene un botón **"Probar"** (`?dryRun=1`: interpreta y responde sin guardar ni tocar `lastUsedAt`) y los pasos con los nombres exactos de los botones de Atajos.
+  - **Claves personales** (`ApiToken`, `lib/apiTokens.ts`): `gst_` + 32 bytes aleatorios. Se guarda **solo el hash SHA-256** y la clave se muestra una vez. Se acepta en `?key=` o como `Authorization: Bearer gst_…`. `authenticateToken` además exige que el dueño siga en `ALLOWED_EMAILS` y actualiza `lastUsedAt` ("último uso" en la página: si nunca cambia, el atajo no está llegando). La clave en la URL puede quedar en los logs de Vercel (privados del usuario); se aceptó porque simplifica mucho el armado y las claves se revocan.
+  - `POST /api/shortcuts/voice` es **tolerante con el cuerpo** (`sentenceFrom`): JSON `{ text }` aunque venga declarado como formulario, formulario urlencoded o multipart (campo `text` o el primero), o texto plano. Así una opción equivocada en "Cuerpo de la solicitud" no rompe el atajo. `GET` (el método por defecto en Atajos) responde 405 con el texto "cambiá el Método a POST", que el atajo muestra. Responde **texto plano en castellano**, que el atajo muestra como notificación. La fecha es `argentinaToday()`.
     - Frase completa → se guarda directo (`createExpenses`, con cuotas si las dice), con el autor de la clave: "Guardado: $1,500.00 · Supermercado · Comida · hoy".
     - Falta el monto o la categoría, o **parece duplicado** (el atajo no puede pedir confirmación) → queda en Pendientes con lo que entendió la IA como sugerencia (sin `note`, para que al completar gane el título limpio).
   - La creación de gastos y el chequeo de duplicados están en `lib/expenseStore.ts` (`createExpenses`, `findDuplicate`), compartidos con `POST /api/expenses`.
@@ -269,7 +270,9 @@ Hay que borrar todo lo que se cree al probar.
 - Leer cada una **varias veces** (`/api/receipts/read`) para medir la estabilidad: con una sola lectura no se ve la variación del modelo (así apareció el "Coto C.I.C.S.A." 1 de cada 5 veces).
 - Cada lectura cuesta ~0,3 centavos.
 
-**Probar el atajo de Siri sin iPhone:** crear una clave con `POST /api/tokens` (con la cookie de sesión) y llamar `POST /api/shortcuts/voice` con `Authorization: Bearer <clave>` y `{"text": "..."}`, como hace el atajo. Probar también sin clave, con una inventada, revocada y de un mail fuera de la allowlist (todas 401).
+**Probar el atajo de Siri sin iPhone:** crear una clave con `POST /api/tokens` (con la cookie de sesión) y llamar `POST /api/shortcuts/voice?key=<clave>` con cada formato de cuerpo que puede mandar Atajos (JSON, formulario, multipart, texto plano); `&dryRun=1` para no guardar. Probar también sin clave, con una inventada, revocada y de un mail fuera de la allowlist (todas 401). Ojo: `curl -d` manda `Content-Type: application/x-www-form-urlencoded` por defecto.
+
+**Diagnosticar el atajo del usuario:** `npx vercel logs --environment production --since 24h --query shortcuts --json`. Si no aparece ningún pedido a `/api/shortcuts/voice`, el atajo falla en el teléfono antes de conectarse (armado del atajo), no en el servidor.
 
 **Probar con sesión sin pasar por Google:** `node --env-file=.env scripts/dev-session-cookie.mjs [email] [nombre]` imprime una cookie firmada con el `NEXTAUTH_SECRET` local (`curl -b "$(...)"` o `context.addCookies` en Playwright). Sin cookie, toda la API da 401.
 
