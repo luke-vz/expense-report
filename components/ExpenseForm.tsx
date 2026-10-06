@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import PhotoViewer from "@/components/PhotoViewer";
 import { useCategories } from "@/lib/useCategories";
-import { daysAgoISO, formatAmount, monthKey, monthLabel, parseAmount } from "@/lib/format";
+import { daysAgoISO, formatAmount, formatDate, monthKey, monthLabel, parseAmount, toAmountInput } from "@/lib/format";
+import VoiceButton, { VoiceResult } from "@/components/VoiceButton";
 import { MAX_INSTALLMENTS, addMonths, splitAmount } from "@/lib/installments";
 import { compressImage } from "@/lib/compressImage";
 import type { Suggestion } from "@/lib/expenses";
@@ -50,6 +51,8 @@ interface ExpenseFormProps {
   allowInstallments?: boolean;
   /** Shows an "Eliminar gasto" button at the end (edit screen). */
   onDelete?: () => void;
+  /** Shows "🎤 Decí el gasto": speech -> Claude -> fields (new expenses). */
+  allowVoice?: boolean;
   /** Shows the "Frecuentes" shortcuts (most used titles) above the categories. */
   showShortcuts?: boolean;
   /** Shows "📷 Foto del ticket" to attach a receipt photo while creating the expense. */
@@ -73,6 +76,7 @@ export default function ExpenseForm({
   allowInstallments = false,
   allowPhoto = false,
   showShortcuts = false,
+  allowVoice = false,
   onDelete,
   onSaveAsPending,
   photoUrl,
@@ -86,6 +90,7 @@ export default function ExpenseForm({
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [titleFocused, setTitleFocused] = useState(false);
   const amountRef = useRef<HTMLInputElement>(null);
+  const [voiceFeedback, setVoiceFeedback] = useState<{ text: string; complete: boolean } | null>(null);
 
   useEffect(() => {
     fetch("/api/suggestions").then(async (res) => res.ok && setSuggestions(await res.json()));
@@ -133,6 +138,34 @@ export default function ExpenseForm({
     } finally {
       setProcessingPhoto(false);
     }
+  };
+
+  // Fills only what was understood; nothing is saved until "Guardar"
+  const applyVoice = (result: VoiceResult) => {
+    setForm({
+      ...form,
+      amount: result.amount ? toAmountInput(result.amount) : form.amount,
+      currency: result.currency,
+      date: result.date,
+      title: result.title ?? form.title,
+      categoryId: result.categoryId ?? form.categoryId,
+    });
+    if (result.installments && allowInstallments) setInstallments(result.installments);
+    setError("");
+
+    const category = categories.find((c) => c.id === result.categoryId);
+    const understood = [
+      result.amount && formatAmount(result.amount, result.currency),
+      result.title,
+      category?.name,
+      result.date === today ? "hoy" : result.date === yesterday ? "ayer" : formatDate(result.date),
+      result.installments && `${result.installments} cuotas`,
+    ].filter(Boolean);
+    const missing = [!result.amount && "el monto", !category && "la categoría"].filter(Boolean);
+    setVoiceFeedback({
+      text: `Entendí: ${understood.join(" · ")}.` + (missing.length ? ` Completá ${missing.join(" y ")}.` : ""),
+      complete: missing.length === 0,
+    });
   };
 
   const saveAsPending = async () => {
@@ -264,6 +297,21 @@ export default function ExpenseForm({
               <input type="file" accept="image/*" className="sr-only" onChange={onPhotoFile} />
               {processingPhoto ? "Procesando..." : "📷 Foto del ticket"}
             </label>
+          )}
+        </div>
+      )}
+
+      {allowVoice && (
+        <div className="mb-6">
+          <VoiceButton
+            today={today}
+            onResult={applyVoice}
+            onError={(text) => setVoiceFeedback({ text, complete: false })}
+          />
+          {voiceFeedback && (
+            <p className={`mt-2 text-sm ${voiceFeedback.complete ? "text-green-400" : "text-amber-400"}`}>
+              {voiceFeedback.text}
+            </p>
           )}
         </div>
       )}
