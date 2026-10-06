@@ -22,7 +22,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es">
       <body className="min-h-screen">
         <Header />
-        <main>{children}</main>
+        {/* Without the header on the phone, keep content clear of the iPhone status bar/notch */}
+        <main className="pt-[env(safe-area-inset-top)] md:pt-0">{children}</main>
         <BottomNav />
       </body>
     </html>

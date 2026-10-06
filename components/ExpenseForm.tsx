@@ -290,7 +290,7 @@ export default function ExpenseForm({
         e.preventDefault();
         submit(false);
       }}
-      className="max-w-xl mx-auto px-4 pt-4 pb-32 md:pb-8"
+      className="max-w-xl mx-auto px-4 pt-4 pb-16 md:pb-8"
     >
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold">{heading}</h1>
@@ -531,7 +531,8 @@ export default function ExpenseForm({
         </button>
       )}
 
-      <div className="fixed bottom-0 inset-x-0 z-40 flex gap-3 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-[#121212] border-t border-[#2b2b2b] md:static md:mt-8 md:p-0 md:border-0 md:bg-transparent">
+      {/* Pinned right above the mobile tab bar (3.75rem tall plus the iPhone safe area) */}
+      <div className="fixed bottom-[calc(3.75rem+env(safe-area-inset-bottom))] inset-x-0 z-40 flex gap-3 p-3 bg-[#121212] border-t border-[#2b2b2b] md:static md:mt-8 md:p-0 md:border-0 md:bg-transparent">
         <button
           type="submit"
           disabled={saving}

@@ -2,6 +2,7 @@
 "use client";
 
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 import CaptureButton from "@/components/CaptureButton";
 import type { Expense } from "@/lib/expenses";
@@ -18,7 +19,15 @@ const totalsByCurrency = (list: Expense[]) =>
 
 export default function HomePage() {
   const [expenses, setExpenses] = useState<Expense[] | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
   const pendingCount = usePendingCount();
+
+  useEffect(() => {
+    fetch("/api/auth/session").then(async (res) => {
+      const session = res.ok ? await res.json() : null;
+      setUserName(session?.user?.name?.split(" ")[0] ?? session?.user?.email ?? null);
+    });
+  }, []);
 
   useEffect(() => {
     const fetchExpenses = async () => {
@@ -114,6 +123,14 @@ export default function HomePage() {
       <Link href="/shortcuts" className="block text-center text-sm text-[#3987e5]">
         📱 Cargar gastos con Siri o un widget
       </Link>
+
+      {/* On the phone there is no header: the session lives here */}
+      <p className="text-center text-xs text-gray-500">
+        {userName && <>Conectado como {userName} · </>}
+        <button onClick={() => signOut({ callbackUrl: "/login" })} className="underline">
+          Salir
+        </button>
+      </p>
     </div>
   );
 }
