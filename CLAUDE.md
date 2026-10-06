@@ -10,9 +10,9 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 
 ## Estado actual (2026-10-06)
 
-**En producción:** carga rápida de gastos (cuotas, ARS/USD, foto del ticket, **por voz con IA**), "pre-gastos" (foto ahora, completar después), login con Google restringido a dos mails, app instalable, dashboard por mes y gestión de categorías.
+**En producción:** carga rápida de gastos (cuotas, ARS/USD, foto del ticket **leída con IA**, **por voz con IA**), "pre-gastos" (foto ahora, completar después, también leída con IA), login con Google restringido a dos mails, app instalable, dashboard por mes y gestión de categorías. El último PR mergeado es el último de la tabla de Historial; verificar con `gh pr list` si hay alguno abierto.
 
-**Último trabajo:** PR #20, **lectura de tickets con IA** (incluye los cambios de docs del #19). Mientras no esté mergeado, la lectura de tickets no está en producción. Verificar con `gh pr list` qué sigue abierto. Después de mergear, conviene que el usuario la pruebe con un ticket real: las pruebas se hicieron con imágenes generadas.
+**A confirmar con el usuario:** la lectura de tickets (PR #20) se probó con imágenes generadas. Falta que la pruebe con tickets reales (arrugados, con poca luz, capturas de su banco).
 
 **La base de producción TIENE DATOS REALES** (cientos de gastos desde 2025) y no se puede resetear. Claude no tiene acceso a sus credenciales: cualquier operación directa sobre esa base la hace el usuario. Las migraciones las aplica el build de producción (ver Decisiones).
 
@@ -62,7 +62,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 | #16 | Dictado por teclado sin IA — **revertido en #17** (sumaba pasos) |
 | #17 | Revierte #16 |
 | #18 | Gasto por voz con IA: 🎤 de un toque + Claude Haiku |
-| #19 | Docs: voz confirmada en iPhone |
+| #19 | Docs: voz confirmada en iPhone (también incluido en #20) |
 | #20 | Lectura de tickets con IA (pendientes y Nuevo gasto) |
 
 ## Arquitectura
