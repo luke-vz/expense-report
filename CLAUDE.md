@@ -17,7 +17,8 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 **Foco y decisiones del usuario — respetarlas:**
 - El foco actual es **pulir la carga de gastos**.
 - **Ahorro y presupuestos (ingresos, tasa de ahorro, topes por categoría, metas) están en pausa** por decisión del usuario: no proponerlos hasta que los pida.
-- **Lectura de tickets con IA pospuesta.** Cuando se retome: modelo más barato (Claude Haiku 4.5), `ANTHROPIC_API_KEY` cargada por el usuario directo en Vercel (nunca pegada en el chat) y con límite de gasto mensual.
+- **IA:** el usuario pidió el **gasto por voz con IA** (2026-10-06); la lectura de tickets con IA sigue pospuesta. Reglas para cualquier uso de IA: modelo más barato (Claude Haiku 4.5), `ANTHROPIC_API_KEY` cargada por el usuario directo en Vercel (nunca pegada en el chat) y con límite de gasto mensual.
+- **La carga no puede sumar pasos.** La vara es: atajo de Frecuentes + monto + Guardar (~3 toques). El dictado por teclado (PR #16) se revirtió (PR #17) porque el usuario lo encontró complejo: campo extra + micrófono del teclado + "Completar" + revisar sumaban pasos.
 - No arrancar ítems del backlog sin que el usuario elija.
 - Formato de montos `$1,500.00`: decidido, no proponer `$1.500,00`. Solo login con Google (Apple requiere cuenta paga de developer). Monedas separadas, sin cotización.
 
@@ -31,12 +32,12 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
   - gastos fijos/recurrentes con vencimiento;
   - importar resúmenes de tarjeta/banco;
   - carga sin conexión (service worker + cola local).
-- **Gasto por audio (idea del usuario):** dictar "gasté 3.500 en el súper ayer" y que quede cargado. Enfoque propuesto, sin implementar:
-  1. Dictado con la Web Speech API del navegador (`SpeechRecognition`, `lang: "es-AR"`; gratis, anda en Chrome Android y Safari iOS).
-  2. El texto pasa por Claude Haiku 4.5, que extrae monto, categoría, fecha y detalle.
-  3. Se abre el formulario precompletado para confirmar.
+- **Gasto por voz con IA (próximo, pedido por el usuario):** decir "gasté 1500 en el supermercado" y que quede listo para guardar. Requisitos:
+  - **un solo toque**: botón 🎤 que escucha directo, sin el teclado ni un botón "Completar";
+  - la IA (Claude Haiku 4.5) entiende frases libres y saca monto, categoría, fecha y detalle;
+  - se confirma con Guardar.
 
-  Claude no recibe audio directo. Depende de la IA (pospuesta); sin IA, una versión simple que parsee "3500 súper ayer".
+  Claude no recibe audio: hay que transcribir antes, con la Web Speech API del navegador (gratis, poco confiable en la PWA de iOS) o grabando audio y transcribiendo en el servidor (otro proveedor). A decidir con el usuario. Frases reales del usuario: "Gasté 1500 en el supermercado", "500 en colectivo", "150 en helado".
 - **Pre-gasto, etapas que faltan:** (2) lectura del ticket con IA (pospuesta); (3) notificación push diaria de pendientes (service worker + tarea diaria de Vercel; en iPhone solo con la app instalada).
 - **Análisis:** categorías marcadas fijo/variable/prescindible; subcategorías o etiquetas; búsqueda por texto; equivalente en USD por fecha (inflación).
 - **Ahorro (en pausa):** ingresos y tasa de ahorro; presupuestos por categoría con alertas; metas de ahorro; exportar CSV/Excel.
@@ -62,6 +63,8 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 | #13 | Foto en Nuevo gasto |
 | #14 | Dashboard por mes |
 | #15 | Pulido de la carga: sugerencias, frecuentes, duplicados, quién cargó, listado por día |
+| #16 | Dictado por teclado sin IA — **revertido en #17** (sumaba pasos) |
+| #17 | Revierte #16 |
 
 ## Arquitectura
 
