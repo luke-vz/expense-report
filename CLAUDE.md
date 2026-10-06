@@ -31,7 +31,12 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
   - gastos fijos/recurrentes con vencimiento;
   - importar resúmenes de tarjeta/banco;
   - carga sin conexión (service worker + cola local).
-- **Gasto por voz con IA:** la versión sin IA ya existe (ver Formulario de carga). Si se queda corta con frases libres, cambiar el analizador por Claude Haiku 4.5 sin tocar la pantalla (depende de la API key, pospuesta).
+- **Gasto por audio (idea del usuario):** dictar "gasté 3.500 en el súper ayer" y que quede cargado. Enfoque propuesto, sin implementar:
+  1. Dictado con la Web Speech API del navegador (`SpeechRecognition`, `lang: "es-AR"`; gratis, anda en Chrome Android y Safari iOS).
+  2. El texto pasa por Claude Haiku 4.5, que extrae monto, categoría, fecha y detalle.
+  3. Se abre el formulario precompletado para confirmar.
+
+  Claude no recibe audio directo. Depende de la IA (pospuesta); sin IA, una versión simple que parsee "3500 súper ayer".
 - **Pre-gasto, etapas que faltan:** (2) lectura del ticket con IA (pospuesta); (3) notificación push diaria de pendientes (service worker + tarea diaria de Vercel; en iPhone solo con la app instalada).
 - **Análisis:** categorías marcadas fijo/variable/prescindible; subcategorías o etiquetas; búsqueda por texto; equivalente en USD por fecha (inflación).
 - **Ahorro (en pausa):** ingresos y tasa de ahorro; presupuestos por categoría con alertas; metas de ahorro; exportar CSV/Excel.
@@ -40,7 +45,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
   - la base de Preview no se migra sola (`DATABASE_URL` de Preview es otra variable; no está confirmado si es otra base);
   - backups de la base de producción;
   - sacar `log: ["query"]` de `lib/prisma.ts` en producción;
-  - no hay tests (`parseSpokenExpense`, `parseAmount`, `splitAmount`/`addMonths` y `shiftMonth` son buenos candidatos; el primero ya tiene 20 frases de prueba armadas en el PR del dictado).
+  - no hay tests (`parseAmount`, `splitAmount`/`addMonths` y `shiftMonth` son buenos candidatos).
 
 ### Historial (PRs a `main`)
 
@@ -57,7 +62,6 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 | #13 | Foto en Nuevo gasto |
 | #14 | Dashboard por mes |
 | #15 | Pulido de la carga: sugerencias, frecuentes, duplicados, quién cargó, listado por día |
-| #16 | Dictado del gasto ("1500 en el supermercado"), sin IA |
 
 ## Arquitectura
 
@@ -100,7 +104,6 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 - **Formulario de carga** (`components/ExpenseForm.tsx`, el único formulario de gastos):
   - Diseño: monto grande arriba con ARS/USD, categorías como botones ordenadas por uso, detalle opcional, fecha Hoy/Ayer/otra y acciones fijas abajo.
   - Props opcionales:
-    - `allowVoice`: campo "Dictá o escribí el gasto" (ver abajo);
     - `showShortcuts`: atajos "Frecuentes" (los 5 detalles más usados con 2 usos o más; completan detalle y categoría y enfocan el monto);
     - `allowInstallments`: selector de cuotas con vista previa;
     - `allowPhoto`: "📷 Foto del ticket" (más abajo);
@@ -108,16 +111,6 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
     - `onDelete`: "Eliminar gasto";
     - `photoUrl`: foto ya existente.
   - El autocompletado del detalle ignora tildes y mayúsculas, y elegir una sugerencia completa también la categoría.
-  - **Dictado:**
-    - Se dicta con el micrófono del **teclado** del celular, no con la Web Speech API, que en la PWA de iOS es poco confiable.
-    - `lib/parseSpokenExpense.ts` (función pura, sin IA) saca de la frase:
-      - monto: `1500`, `1.500`, `mil quinientos`, `12 lucas`, `un palo`, `15k`;
-      - moneda: "dólares";
-      - cuotas: "en 6 cuotas";
-      - fecha: hoy, ayer, anteayer, "el sábado";
-      - detalle: lo que queda sin muletillas.
-    - Categoría, en este orden: lo aprendido en `/api/suggestions`, una palabra que sea el nombre de una categoría, y un diccionario de palabras clave (colectivo → Transporte, supermercado → Comida…), solo para categorías que existan.
-    - Completa los campos y muestra qué entendió y qué falta. **Nunca guarda solo.** Frases reales del usuario: "Gasté 1500 en el supermercado", "500 en colectivo", "150 en helado".
   - En el alta (`app/expenses/new/page.tsx`):
     - "Guardar y otro" remonta el form (cambiando `key`) y muestra un aviso con "Deshacer".
     - Con `?pending=<id>` completa un pendiente.

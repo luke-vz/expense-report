@@ -148,7 +148,6 @@ function NewExpense() {
         allowAnother
         allowInstallments
         allowPhoto
-        allowVoice
         showShortcuts
         onSaveAsPending={savePending}
         autoFocusAmount
