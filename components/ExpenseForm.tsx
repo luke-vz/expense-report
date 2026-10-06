@@ -53,6 +53,10 @@ interface ExpenseFormProps {
   onDelete?: () => void;
   /** Shows "🎤 Decí el gasto": speech -> Claude -> fields (new expenses). */
   allowVoice?: boolean;
+  /** With allowPhoto: read the attached photo with AI and fill the empty fields. */
+  readReceipts?: boolean;
+  /** Installments preselected (completing a pending the AI read as "en 6 cuotas"). */
+  initialInstallments?: number;
   /** Shows the "Frecuentes" shortcuts (most used titles) above the categories. */
   showShortcuts?: boolean;
   /** Shows "📷 Foto del ticket" to attach a receipt photo while creating the expense. */
@@ -77,6 +81,8 @@ export default function ExpenseForm({
   allowPhoto = false,
   showShortcuts = false,
   allowVoice = false,
+  readReceipts = false,
+  initialInstallments = 1,
   onDelete,
   onSaveAsPending,
   photoUrl,
@@ -86,7 +92,8 @@ export default function ExpenseForm({
   const [form, setForm] = useState(initialValues);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [installments, setInstallments] = useState(1);
+  const [installments, setInstallments] = useState(initialInstallments);
+  const [readingPhoto, setReadingPhoto] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [titleFocused, setTitleFocused] = useState(false);
   const amountRef = useRef<HTMLInputElement>(null);
@@ -130,27 +137,55 @@ export default function ExpenseForm({
     e.target.value = ""; // allow picking the same file again
     if (!file) return;
     setProcessingPhoto(true);
+    let compressed: Blob;
     try {
-      setPhoto(await compressImage(file));
+      compressed = await compressImage(file);
+      setPhoto(compressed);
       setError("");
     } catch {
       setError("No se pudo leer la imagen.");
+      return;
     } finally {
       setProcessingPhoto(false);
     }
+    if (!readReceipts) return;
+
+    // Read the ticket while the person keeps using the form
+    setReadingPhoto(true);
+    setVoiceFeedback(null);
+    try {
+      const body = new FormData();
+      body.append("photo", compressed, "photo.jpg");
+      body.append("today", today);
+      const res = await fetch("/api/receipts/read", { method: "POST", body });
+      if (!res.ok) throw new Error(String(res.status));
+      applyAi(await res.json(), "receipt");
+    } catch {
+      setVoiceFeedback({ text: "No pude leer el ticket. Completalo a mano.", complete: false });
+    } finally {
+      setReadingPhoto(false);
+    }
   };
 
-  // Fills only what was understood; nothing is saved until "Guardar"
-  const applyVoice = (result: VoiceResult) => {
-    setForm({
-      ...form,
-      amount: result.amount ? toAmountInput(result.amount) : form.amount,
-      currency: result.currency,
-      date: result.date,
-      title: result.title ?? form.title,
-      categoryId: result.categoryId ?? form.categoryId,
+  // Fills the form with what the AI understood; nothing is saved until "Guardar".
+  // Voice overwrites (the person just said it); a receipt only fills empty fields, so
+  // whatever was typed while the photo was being read wins. Functional update: the
+  // receipt answer arrives later and must not work on a stale copy of the form.
+  const applyAi = (result: VoiceResult, source: "voice" | "receipt") => {
+    const onlyEmpty = source === "receipt";
+    setForm((prev) => {
+      const amountEmpty = !prev.amount.trim();
+      return {
+        ...prev,
+        amount: result.amount && (!onlyEmpty || amountEmpty) ? toAmountInput(result.amount) : prev.amount,
+        currency: !onlyEmpty || amountEmpty ? result.currency : prev.currency,
+        // The default date is today: a date read from the ticket replaces it
+        date: !onlyEmpty || prev.date === today ? result.date : prev.date,
+        title: result.title && (!onlyEmpty || !prev.title.trim()) ? result.title : prev.title,
+        categoryId: result.categoryId && (!onlyEmpty || !prev.categoryId) ? result.categoryId : prev.categoryId,
+      };
     });
-    if (result.installments && allowInstallments) setInstallments(result.installments);
+    if (result.installments && allowInstallments && (!onlyEmpty || installments === 1)) setInstallments(result.installments);
     setError("");
 
     const category = categories.find((c) => c.id === result.categoryId);
@@ -162,8 +197,14 @@ export default function ExpenseForm({
       result.installments && `${result.installments} cuotas`,
     ].filter(Boolean);
     const missing = [!result.amount && "el monto", !category && "la categoría"].filter(Boolean);
+    const nothing = !result.amount && !result.title && !category;
     setVoiceFeedback({
-      text: `Entendí: ${understood.join(" · ")}.` + (missing.length ? ` Completá ${missing.join(" y ")}.` : ""),
+      text: nothing
+        ? source === "receipt"
+          ? "No encontré datos de un gasto en la foto. Completalo a mano."
+          : "No entendí el gasto. Probá de nuevo."
+        : `${source === "receipt" ? "Del ticket" : "Entendí"}: ${understood.join(" · ")}.` +
+          (missing.length ? ` Completá ${missing.join(" y ")}.` : ""),
       complete: missing.length === 0,
     });
   };
@@ -272,6 +313,7 @@ export default function ExpenseForm({
             <div className="flex items-center gap-4">
               <PhotoViewer src={photoPreview} alt="Foto del ticket" className="h-24 w-24 rounded-md object-cover" />
               <div className="flex flex-col items-start gap-2 text-sm">
+                {readingPhoto && <span className="text-[#9cc3f2]">Leyendo el ticket…</span>}
                 {onSaveAsPending && (
                   <button
                     type="button"
@@ -282,7 +324,14 @@ export default function ExpenseForm({
                     ¿Sin tiempo? Guardar como pendiente →
                   </button>
                 )}
-                <button type="button" onClick={() => setPhoto(null)} className="text-gray-400">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhoto(null);
+                    setVoiceFeedback(null);
+                  }}
+                  className="text-gray-400"
+                >
                   Quitar foto
                 </button>
               </div>
@@ -305,15 +354,17 @@ export default function ExpenseForm({
         <div className="mb-6">
           <VoiceButton
             today={today}
-            onResult={applyVoice}
+            onResult={(result) => applyAi(result, "voice")}
             onError={(text) => setVoiceFeedback({ text, complete: false })}
           />
-          {voiceFeedback && (
-            <p className={`mt-2 text-sm ${voiceFeedback.complete ? "text-green-400" : "text-amber-400"}`}>
-              {voiceFeedback.text}
-            </p>
-          )}
         </div>
+      )}
+
+      {/* What the AI understood, from the voice or from the ticket photo */}
+      {voiceFeedback && (
+        <p className={`-mt-4 mb-6 text-sm ${voiceFeedback.complete ? "text-green-400" : "text-amber-400"}`}>
+          {voiceFeedback.text}
+        </p>
       )}
 
       <label className="block text-center">
