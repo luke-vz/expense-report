@@ -110,6 +110,10 @@ export default function HomePage() {
           )}
         </ul>
       </section>
+
+      <Link href="/shortcuts" className="block text-center text-sm text-[#3987e5]">
+        📱 Cargar gastos con Siri o un widget
+      </Link>
     </div>
   );
 }

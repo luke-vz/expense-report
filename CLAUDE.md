@@ -12,14 +12,17 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 
 **En producción:** carga rápida de gastos (cuotas, ARS/USD, foto del ticket **leída con IA**, **por voz con IA**), "pre-gastos" (foto ahora, completar después, también leída con IA), login con Google restringido a dos mails, app instalable, dashboard por mes y gestión de categorías. El último PR mergeado es el último de la tabla de Historial; verificar con `gh pr list` si hay alguno abierto.
 
-**A confirmar con el usuario:** la lectura de tickets (PR #20) se probó con imágenes generadas. Falta que la pruebe con tickets reales (arrugados, con poca luz, capturas de su banco).
+**A confirmar con el usuario:**
+- La lectura de tickets (PR #20) se probó con imágenes generadas. Falta que la pruebe con tickets reales (arrugados, con poca luz, capturas de su banco).
+- El atajo de Siri/widget (PR #22) se probó llamando al endpoint como lo haría el iPhone. Falta que el usuario arme el atajo en Atajos siguiendo la guía de `/shortcuts` y confirme que anda.
 
 **La base de producción TIENE DATOS REALES** (cientos de gastos desde 2025) y no se puede resetear. Claude no tiene acceso a sus credenciales: cualquier operación directa sobre esa base la hace el usuario. Las migraciones las aplica el build de producción (ver Decisiones).
 
 **Foco y decisiones del usuario — respetarlas:**
 - El foco actual es **pulir la carga de gastos**.
 - **Ahorro y presupuestos (ingresos, tasa de ahorro, topes por categoría, metas) están en pausa** por decisión del usuario: no proponerlos hasta que los pida.
-- **IA:** en uso para el **gasto por voz** (PR #18) y la **lectura de tickets** (PR #20). Reglas para cualquier uso de IA: modelo más barato (Claude Haiku 4.5), `ANTHROPIC_API_KEY` cargada por el usuario directo en Vercel (nunca pegada en el chat) y con límite de gasto mensual.
+- **IA:** en uso para el **gasto por voz** (PR #18 en la app, PR #22 desde Siri/widget) y la **lectura de tickets** (PR #20).
+- **Widget de iPhone = atajo de la app Atajos**, no una app nativa: un widget nativo exigiría Swift, una Mac con Xcode (el usuario usa Linux) y la cuenta de Apple Developer (US$ 99/año). El usuario lo quiere **solo para voz**. Reglas para cualquier uso de IA: modelo más barato (Claude Haiku 4.5), `ANTHROPIC_API_KEY` cargada por el usuario directo en Vercel (nunca pegada en el chat) y con límite de gasto mensual.
 - **La carga no puede sumar pasos.** La vara es: atajo de Frecuentes + monto + Guardar (~3 toques). El dictado por teclado (PR #16) se revirtió (PR #17) porque el usuario lo encontró complejo: campo extra + micrófono del teclado + "Completar" + revisar sumaban pasos.
 - No arrancar ítems del backlog sin que el usuario elija.
 - Formato de montos `$1,500.00`: decidido, no proponer `$1.500,00`. Solo login con Google (Apple requiere cuenta paga de developer). Monedas separadas, sin cotización.
@@ -64,6 +67,8 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 | #18 | Gasto por voz con IA: 🎤 de un toque + Claude Haiku |
 | #19 | Docs: voz confirmada en iPhone (también incluido en #20) |
 | #20 | Lectura de tickets con IA (pendientes y Nuevo gasto) |
+| #21 | Docs: estado tras la lectura de tickets |
+| #22 | Gasto por voz desde Siri/widget (atajo de Atajos + claves personales) |
 
 ## Arquitectura
 
@@ -74,7 +79,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 
   Cliente Prisma singleton en `lib/prisma.ts`. El alias `@/*` apunta a la raíz del repo.
 - **Auth** (`middleware.ts`, `lib/auth.ts`, `lib/allowlist.ts`):
-  - Todo exige sesión salvo `/login`, `/api/auth/*`, `_next`, `manifest.webmanifest`, `/icons` y `favicon.ico`. Sin sesión, las páginas redirigen a `/login?callbackUrl=…` y la API responde 401.
+  - Todo exige sesión salvo `/login`, `/api/auth/*`, `/api/shortcuts/*` (se autentica con clave personal, ver Atajos), `_next`, `manifest.webmanifest`, `/icons` y `favicon.ico`. Sin sesión, las páginas redirigen a `/login?callbackUrl=…` y la API responde 401.
   - La allowlist (`ALLOWED_EMAILS`) se chequea al loguear **y** en cada request, así sacar un mail revoca el acceso aunque la sesión siga vigente.
   - Sesión JWT de 180 días, sin tablas. Variables documentadas en `.env.example`.
 - **API** (route handlers en `app/api/`):
@@ -89,6 +94,8 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
   - `categories` — lista (con `expenseCount`), crea y renombra. `DELETE` da 409 si la categoría tiene gastos. `POST categories/[id]/merge {targetId}` mueve los gastos y borra la original en una transacción.
   - `suggestions` — detalles ya usados (sin cuotas repetidas ni detalles iguales al nombre de la categoría), con cantidad de usos y la última categoría. Alimenta el autocompletado y los atajos "Frecuentes".
   - `pending`, `pending/[id]`, `photos/[...key]` — ver Pendientes y Fotos.
+  - `tokens`, `tokens/[id]` — claves personales del atajo de iPhone (ver Atajos): listar las propias, crear (la devuelve **una sola vez**) y revocar.
+  - `shortcuts/voice` — ver Atajos.
   - `voice` — `POST {text, today}` → `expenseFromSentence`. `receipts/read` — `POST` multipart `{photo, today}` → `expenseFromReceipt`. Las dos devuelven `{amount, currency, date, title, categoryId, installments}`, no guardan nada y sin `ANTHROPIC_API_KEY` responden 503.
 - **IA** (`lib/expenseAi.ts`, compartido por la voz, los tickets y los pendientes):
   - Claude Haiku 4.5 con salida estructurada (`output_config.format` con JSON schema).
@@ -115,6 +122,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
   - `/categories` — agregar, renombrar, unir y borrar (en el celular se llega desde `/expenses`).
   - `/pending` — capturar y listar pendientes.
   - `/login` — botón de Google; muestra "sin acceso" si la cuenta no está en la allowlist.
+  - `/shortcuts` — "Siri y widget de iPhone": generar, copiar y revocar claves, más la guía del atajo (link al pie de la home).
 - **Formulario de carga** (`components/ExpenseForm.tsx`, el único formulario de gastos):
   - Diseño: monto grande arriba con ARS/USD, categorías como botones ordenadas por uso, detalle opcional, fecha Hoy/Ayer/otra y acciones fijas abajo.
   - Props opcionales:
@@ -157,6 +165,13 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
     - Si todavía está leyendo, espera hasta ~30 s (15 intentos cada 2 s) mostrando "Leyendo el ticket…", con "Completar a mano".
     - `POST /api/expenses` con `pendingId` crea el gasto y borra el pendiente en una transacción; la foto pasa a `receiptUrl`.
   - Contador: `lib/usePendingCount.ts`, que se refresca con `notifyPendingChanged()`, alimenta el globito y el cartel de la home.
+- **Atajos de iPhone (Siri / widget / botón de acción)**, en `/shortcuts`:
+  - El atajo "Anotar gasto" de la app Atajos hace "Dictar texto" → `POST /api/shortcuts/voice` → "Mostrar notificación". La guía para armarlo está en la página, con la URL y la clave para copiar.
+  - **Claves personales** (`ApiToken`, `lib/apiTokens.ts`): `gst_` + 32 bytes aleatorios. Se guarda **solo el hash SHA-256** y la clave se muestra una vez. El atajo la manda como `Authorization: Bearer gst_…`. `authenticateToken` además exige que el dueño siga en `ALLOWED_EMAILS` y actualiza `lastUsedAt`.
+  - `POST /api/shortcuts/voice` recibe `{ text }` en JSON (o la frase como texto plano) y responde **texto plano en castellano**, que el atajo muestra como notificación. La fecha es `argentinaToday()`.
+    - Frase completa → se guarda directo (`createExpenses`, con cuotas si las dice), con el autor de la clave: "Guardado: $1,500.00 · Supermercado · Comida · hoy".
+    - Falta el monto o la categoría, o **parece duplicado** (el atajo no puede pedir confirmación) → queda en Pendientes con lo que entendió la IA como sugerencia (sin `note`, para que al completar gane el título limpio).
+  - La creación de gastos y el chequeo de duplicados están en `lib/expenseStore.ts` (`createExpenses`, `findDuplicate`), compartidos con `POST /api/expenses`.
 - **Fotos** (`lib/photos.ts`):
   - En producción viven en un Vercel Blob **privado**. Nunca se expone la URL del blob: se sirven por `/api/photos/<key>`, detrás del login. Se ven dentro de la app con `components/PhotoViewer.tsx`.
   - En la base se guarda la key (`photoKey`) o la URL de la app (`receiptUrl` = `/api/photos/receipts/<uuid>.jpg`).
@@ -252,6 +267,8 @@ Hay que borrar todo lo que se cree al probar.
 - Generar imágenes con ImageMagick. Las que se usaron: un ticket con subtotal, IVA, descuento y vuelto (el total correcto es otro número), una captura de transferencia de Mercado Pago con motivo, una factura de servicio y una foto que no es un comprobante.
 - Leer cada una **varias veces** (`/api/receipts/read`) para medir la estabilidad: con una sola lectura no se ve la variación del modelo (así apareció el "Coto C.I.C.S.A." 1 de cada 5 veces).
 - Cada lectura cuesta ~0,3 centavos.
+
+**Probar el atajo de Siri sin iPhone:** crear una clave con `POST /api/tokens` (con la cookie de sesión) y llamar `POST /api/shortcuts/voice` con `Authorization: Bearer <clave>` y `{"text": "..."}`, como hace el atajo. Probar también sin clave, con una inventada, revocada y de un mail fuera de la allowlist (todas 401).
 
 **Probar con sesión sin pasar por Google:** `node --env-file=.env scripts/dev-session-cookie.mjs [email] [nombre]` imprime una cookie firmada con el `NEXTAUTH_SECRET` local (`curl -b "$(...)"` o `context.addCookies` en Playwright). Sin cookie, toda la API da 401.
 

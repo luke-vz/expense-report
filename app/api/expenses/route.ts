@@ -3,9 +3,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { serializeExpense } from "@/lib/serialize";
 import { parseExpenseInput } from "@/lib/validation";
-import { photoUrl } from "@/lib/photos";
-import { MAX_INSTALLMENTS, addMonths, splitAmount } from "@/lib/installments";
-import { randomUUID } from "node:crypto";
+import { MAX_INSTALLMENTS } from "@/lib/installments";
+import { createExpenses, findDuplicate, type NewExpense } from "@/lib/expenseStore";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -62,18 +61,9 @@ export async function POST(req: NextRequest) {
 
   // Two people load expenses: before creating, look for the same amount, currency, category
   // and day (e.g. the other one already loaded it). The client confirms and retries with
-  // allowDuplicate: true. Purchases in installments are not checked.
+  // allowDuplicate: true.
   if (installments === 1 && body?.allowDuplicate !== true) {
-    const duplicate = await prisma.expense.findFirst({
-      where: {
-        amount: data.amount,
-        currency: data.currency ?? "ARS",
-        categoryId: data.categoryId,
-        date: data.date,
-        installmentGroupId: null,
-      },
-      include: { category: true },
-    });
+    const duplicate = await findDuplicate(data as NewExpense);
     if (duplicate) {
       return NextResponse.json(
         { error: "Possible duplicate", duplicate: serializeExpense(duplicate) },
@@ -83,45 +73,10 @@ export async function POST(req: NextRequest) {
   }
 
   const session = await getServerSession(authOptions);
-  const createdBy = { createdBy: session?.user?.email ?? null, createdByName: session?.user?.name ?? null };
+  const author = { createdBy: session?.user?.email ?? null, createdByName: session?.user?.name ?? null };
 
   try {
-    const expense = await prisma.$transaction(async (tx) => {
-      let receiptUrl = data.receiptUrl;
-      if (pendingId) {
-        const pending = await tx.pendingExpense.delete({ where: { id: pendingId } });
-        if (pending.photoKey) receiptUrl = photoUrl(pending.photoKey);
-      }
-      if (installments === 1) {
-        return tx.expense.create({
-          data: { ...data, ...createdBy, receiptUrl } as Prisma.ExpenseUncheckedCreateInput,
-          include: { category: true },
-        });
-      }
-
-      const groupId = randomUUID();
-      const firstDay = data.date!.toISOString().slice(0, 10);
-      const amounts = splitAmount(data.amount!.toNumber(), installments);
-      const created = [];
-      for (let i = 0; i < installments; i++) {
-        created.push(
-          await tx.expense.create({
-            data: {
-              ...data,
-              ...createdBy,
-              receiptUrl,
-              amount: new Prisma.Decimal(amounts[i].toFixed(2)),
-              date: new Date(addMonths(firstDay, i)),
-              installmentGroupId: groupId,
-              installmentNumber: i + 1,
-              installmentCount: installments,
-            } as Prisma.ExpenseUncheckedCreateInput,
-            include: { category: true },
-          })
-        );
-      }
-      return created[0];
-    });
+    const expense = await createExpenses(data as NewExpense, { installments, author, pendingId });
     return NextResponse.json(serializeExpense(expense));
   } catch {
     return NextResponse.json({ error: "Failed to create expense" }, { status: 400 });

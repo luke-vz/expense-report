@@ -19,7 +19,8 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Public: NextAuth's own routes, the login page, Next internals, and the PWA
-  // manifest/icons (browsers fetch those without cookies)
-  matcher: ["/((?!api/auth|login|_next/|icons/|manifest.webmanifest|favicon.ico).*)"],
+  // Public: NextAuth's own routes, the login page, Next internals, the PWA manifest/icons
+  // (browsers fetch those without cookies) and api/shortcuts, which authenticates with a
+  // personal key instead of the session (the iPhone shortcut can't do the Google login)
+  matcher: ["/((?!api/auth|api/shortcuts/|login|_next/|icons/|manifest.webmanifest|favicon.ico).*)"],
 };
