@@ -5,8 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import PhotoViewer from "@/components/PhotoViewer";
 import { useCategories } from "@/lib/useCategories";
-import { daysAgoISO, formatAmount, formatDate, monthKey, monthLabel, parseAmount, toAmountInput } from "@/lib/format";
-import { parseSpokenExpense } from "@/lib/parseSpokenExpense";
+import { daysAgoISO, formatAmount, monthKey, monthLabel, parseAmount } from "@/lib/format";
 import { MAX_INSTALLMENTS, addMonths, splitAmount } from "@/lib/installments";
 import { compressImage } from "@/lib/compressImage";
 import type { Suggestion } from "@/lib/expenses";
@@ -51,8 +50,6 @@ interface ExpenseFormProps {
   allowInstallments?: boolean;
   /** Shows an "Eliminar gasto" button at the end (edit screen). */
   onDelete?: () => void;
-  /** Shows "Dictá o escribí el gasto": a sentence parsed into the fields (new expenses). */
-  allowVoice?: boolean;
   /** Shows the "Frecuentes" shortcuts (most used titles) above the categories. */
   showShortcuts?: boolean;
   /** Shows "📷 Foto del ticket" to attach a receipt photo while creating the expense. */
@@ -76,7 +73,6 @@ export default function ExpenseForm({
   allowInstallments = false,
   allowPhoto = false,
   showShortcuts = false,
-  allowVoice = false,
   onDelete,
   onSaveAsPending,
   photoUrl,
@@ -90,8 +86,6 @@ export default function ExpenseForm({
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [titleFocused, setTitleFocused] = useState(false);
   const amountRef = useRef<HTMLInputElement>(null);
-  const [spoken, setSpoken] = useState("");
-  const [spokenFeedback, setSpokenFeedback] = useState<{ text: string; complete: boolean } | null>(null);
 
   useEffect(() => {
     fetch("/api/suggestions").then(async (res) => res.ok && setSuggestions(await res.json()));
@@ -139,39 +133,6 @@ export default function ExpenseForm({
     } finally {
       setProcessingPhoto(false);
     }
-  };
-
-  // "Gasté 1500 en el supermercado" -> fills the fields it understood, leaves the rest as is.
-  // Nothing is saved: the user reviews and taps "Guardar".
-  const applySpoken = () => {
-    if (!spoken.trim()) return;
-    const parsed = parseSpokenExpense(spoken, { categories, suggestions, today });
-    setForm({
-      ...form,
-      amount: parsed.amount ? toAmountInput(parsed.amount) : form.amount,
-      currency: parsed.currency ?? form.currency,
-      date: parsed.date ?? form.date,
-      title: parsed.title ?? form.title,
-      categoryId: parsed.categoryId ?? form.categoryId,
-    });
-    if (parsed.installments && allowInstallments) setInstallments(parsed.installments);
-    setError("");
-
-    const category = categories.find((c) => c.id === parsed.categoryId);
-    const understood = [
-      parsed.amount && formatAmount(parsed.amount, parsed.currency ?? form.currency),
-      parsed.title,
-      category?.name,
-      parsed.date && (parsed.date === today ? "hoy" : parsed.date === yesterday ? "ayer" : formatDate(parsed.date)),
-      parsed.installments && `${parsed.installments} cuotas`,
-    ].filter(Boolean);
-    const missing = [!parsed.amount && "el monto", !category && "la categoría"].filter(Boolean);
-    setSpokenFeedback({
-      text:
-        (understood.length ? `Entendí: ${understood.join(" · ")}.` : "No entendí el gasto.") +
-        (missing.length ? ` Completá ${missing.join(" y ")}.` : ""),
-      complete: missing.length === 0,
-    });
   };
 
   const saveAsPending = async () => {
@@ -304,43 +265,6 @@ export default function ExpenseForm({
               {processingPhoto ? "Procesando..." : "📷 Foto del ticket"}
             </label>
           )}
-        </div>
-      )}
-
-      {allowVoice && (
-        <div className="mb-6">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              enterKeyHint="done"
-              autoComplete="off"
-              aria-label="Dictá o escribí el gasto"
-              placeholder="🎤 Ej: 1500 en el supermercado"
-              value={spoken}
-              onChange={(e) => {
-                setSpoken(e.target.value);
-                setSpokenFeedback(null);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault(); // don't submit the form
-                  applySpoken();
-                }
-              }}
-              className="bg-input min-w-0 flex-1 rounded-md p-3 text-sm"
-            />
-            <button
-              type="button"
-              onClick={applySpoken}
-              disabled={!spoken.trim()}
-              className="bg-boton rounded-md px-4 text-sm disabled:opacity-50"
-            >
-              Completar
-            </button>
-          </div>
-          <p className={`mt-1 text-xs ${spokenFeedback ? (spokenFeedback.complete ? "text-green-400" : "text-amber-400") : "text-gray-500"}`}>
-            {spokenFeedback?.text ?? "Tocá el micrófono del teclado y decí el gasto, o escribilo."}
-          </p>
         </div>
       )}
 
