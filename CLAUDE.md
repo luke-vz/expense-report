@@ -10,7 +10,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 
 ## Estado actual (2026-10-05)
 
-**En producción:** carga rápida de gastos (cuotas, ARS/USD, foto del ticket), "pre-gastos" (foto ahora, completar después), login con Google restringido a dos mails, app instalable, dashboard por mes y gestión de categorías. El último PR es el #15 (pulido de la carga); verificar con `gh pr list` si sigue abierto.
+**En producción:** carga rápida de gastos (cuotas, ARS/USD, foto del ticket, **por voz con IA**), "pre-gastos" (foto ahora, completar después), login con Google restringido a dos mails, app instalable, dashboard por mes y gestión de categorías. El último PR mergeado es el #18 (gasto por voz); verificar con `gh pr list` si hay alguno abierto.
 
 **La base de producción TIENE DATOS REALES** (cientos de gastos desde 2025) y no se puede resetear. Claude no tiene acceso a sus credenciales: cualquier operación directa sobre esa base la hace el usuario. Las migraciones las aplica el build de producción (ver Decisiones).
 
@@ -32,7 +32,6 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
   - gastos fijos/recurrentes con vencimiento;
   - importar resúmenes de tarjeta/banco;
   - carga sin conexión (service worker + cola local).
-- **Gasto por voz — falta confirmar en iPhone:** implementado en el PR #18 con la Web Speech API del navegador. Los dos usan **iPhone**, y en la PWA de iOS esa API es poco confiable. Si el usuario reporta "Este teléfono no permite reconocimiento de voz desde la app" u otro error, el plan B es grabar audio con `MediaRecorder` y transcribir en el servidor (otro proveedor de speech-to-text). `/api/voice` no cambia: sigue recibiendo texto.
 - **Pre-gasto, etapas que faltan:** (2) lectura del ticket con IA (pospuesta); (3) notificación push diaria de pendientes (service worker + tarea diaria de Vercel; en iPhone solo con la app instalada).
 - **Análisis:** categorías marcadas fijo/variable/prescindible; subcategorías o etiquetas; búsqueda por texto; equivalente en USD por fecha (inflación).
 - **Ahorro (en pausa):** ingresos y tasa de ahorro; presupuestos por categoría con alertas; metas de ahorro; exportar CSV/Excel.
@@ -169,7 +168,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
   - Las cuotas futuras cuentan en los meses que vienen ("Cuotas a futuro" en la home) y se excluyen de "Últimos gastos", porque la API ordena por fecha descendente y quedarían arriba.
 - **Monedas separadas, nunca convertidas.** Solo `ARS` y `USD` (`CURRENCIES` en `lib/validation.ts`); USD se usa sobre todo para suscripciones. Los totales siempre se muestran por moneda.
 - **Montos tipeados en formato argentino.** El input de monto es `type="text" inputMode="decimal"` (no `type="number"`, que según el teclado rechaza la coma) y se interpreta con `parseAmount`: coma = decimal, puntos = miles. Sin coma, un punto seguido de exactamente 3 dígitos es de miles (`1.500` → 1500); si no, es decimal (`12.5`). La API recibe siempre un número.
-- **Voz: transcribir en el navegador, interpretar con IA.** El dictado por teclado sin IA (#16) se revirtió por sumar pasos. La vara es "un toque y Guardar". Claude no recibe audio, por eso la transcripción la hace el navegador (gratis). Haiku interpreta frases libres ("le pagué 25 lucas a la plomera ayer" → $25.000 · Plomera · Casa · ayer) y usa los hábitos de la casa para elegir la categoría. Cada frase cuesta una fracción de centavo.
+- **Voz: transcribir en el navegador, interpretar con IA.** **Confirmado por el usuario en su iPhone, con la app instalada** (2026-10-06): solo pide permisos de micrófono y reconocimiento de voz la primera vez. Si algún día falla en otro dispositivo, el plan B es grabar audio con `MediaRecorder` y transcribir en el servidor; `/api/voice` no cambia porque recibe texto. El dictado por teclado sin IA (#16) se revirtió por sumar pasos. La vara es "un toque y Guardar". Claude no recibe audio, por eso la transcripción la hace el navegador (gratis). Haiku interpreta frases libres ("le pagué 25 lucas a la plomera ayer" → $25.000 · Plomera · Casa · ayer) y usa los hábitos de la casa para elegir la categoría. Cada frase cuesta una fracción de centavo.
 - **Duplicados se chequean en el servidor**, no en el cliente: así detecta también lo que cargó la otra persona desde su teléfono.
 - **Título opcional en la UI:** si queda vacío, el form manda el nombre de la categoría. La API sigue exigiendo `title`. Por eso `/api/suggestions` ignora los títulos iguales al nombre de la categoría.
 - **Dashboard sin paleta categórica:**
