@@ -26,13 +26,28 @@ function NewExpense() {
   // Changing the key remounts the form with empty values after "Guardar y otro"
   const [formKey, setFormKey] = useState(0);
   const [lastSaved, setLastSaved] = useState<Saved | null>(null);
+  const [skipReading, setSkipReading] = useState(false);
 
+  // Load the pending; if the AI is still reading its photo, check again for ~30 s
   useEffect(() => {
     if (!pendingId) return;
-    fetch(`/api/pending/${pendingId}`).then(async (res) => {
-      if (res.ok) setPending(await res.json());
-      else setLoadError("Ese pendiente ya no existe.");
-    });
+    let cancelled = false;
+    let attempts = 0;
+    const load = async () => {
+      const res = await fetch(`/api/pending/${pendingId}`);
+      if (cancelled) return;
+      if (!res.ok) {
+        setLoadError("Ese pendiente ya no existe.");
+        return;
+      }
+      const data: PendingExpense = await res.json();
+      setPending(data);
+      if (data.aiStatus === "reading" && ++attempts < 15) setTimeout(load, 2000);
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, [pendingId]);
 
   useEffect(() => {
@@ -41,9 +56,11 @@ function NewExpense() {
     return () => clearTimeout(timer);
   }, [lastSaved]);
 
-  const uploadPending = async (draft: PendingDraft) => {
+  // skipAi: the photo is only being attached to an expense saved right away (already read in the form)
+  const uploadPending = async (draft: PendingDraft, skipAi = false) => {
     const form = new FormData();
     form.append("photo", draft.photo, "photo.jpg");
+    if (skipAi) form.append("skipAi", "1");
     if (draft.amount) form.append("amount", String(draft.amount));
     if (draft.note) form.append("note", draft.note);
     const res = await fetch("/api/pending", { method: "POST", body: form });
@@ -63,7 +80,7 @@ function NewExpense() {
     // expense: same path as completing a pending, so it becomes the receipt (cuotas too)
     let fromPending = pendingId;
     if (photo) {
-      const uploaded = await uploadPending({ photo, amount: null, note: null });
+      const uploaded = await uploadPending({ photo, amount: null, note: null }, true);
       if (!uploaded) return "No se pudo subir la foto.";
       fromPending = uploaded.id;
     }
@@ -120,17 +137,31 @@ function NewExpense() {
   if (pendingId) {
     if (loadError) return <p className="p-6 text-red-500">{loadError}</p>;
     if (!pending) return <p className="p-6">Cargando...</p>;
+    if (pending.aiStatus === "reading" && !skipReading) {
+      return (
+        <div className="p-6 text-center space-y-4">
+          <p className="text-[#9cc3f2]">Leyendo el ticket…</p>
+          <button onClick={() => setSkipReading(true)} className="text-sm text-gray-400 underline">
+            Completar a mano
+          </button>
+        </div>
+      );
+    }
+    // What was typed at capture wins; the AI fills the rest
+    const ai = pending.suggestion;
+    const amount = pending.amount ?? ai?.amount ?? null;
     return (
       <ExpenseForm
         heading="Completar gasto"
         photoUrl={pending.photoUrl}
         initialValues={{
-          title: pending.note ?? "",
-          amount: pending.amount ? toAmountInput(pending.amount) : "",
-          categoryId: "",
-          date: toLocalISODate(new Date(pending.createdAt)),
-          currency: "ARS",
+          title: pending.note ?? ai?.title ?? "",
+          amount: amount ? toAmountInput(amount) : "",
+          categoryId: ai?.categoryId ?? "",
+          date: ai?.date ?? toLocalISODate(new Date(pending.createdAt)),
+          currency: pending.amount ? "ARS" : (ai?.currency ?? "ARS"),
         }}
+        initialInstallments={ai?.installments ?? 1}
         allowInstallments
         submitLabel="Guardar"
         onSubmit={createExpense}
@@ -148,6 +179,7 @@ function NewExpense() {
         allowAnother
         allowInstallments
         allowPhoto
+        readReceipts
         allowVoice
         showShortcuts
         onSaveAsPending={savePending}

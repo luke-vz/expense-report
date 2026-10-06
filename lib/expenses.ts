@@ -31,6 +31,16 @@ export interface PendingExpense {
   photoUrl: string | null;
   createdBy: string | null;
   createdAt: string; // ISO timestamp of the capture
+  aiStatus: "reading" | "done" | "failed" | null;
+  /** What the AI read from the photo (aiStatus "done"); values may be null if unreadable */
+  suggestion: {
+    amount: number | null;
+    currency: string;
+    title: string | null;
+    categoryId: string | null;
+    date: string | null;
+    installments: number | null;
+  } | null;
 }
 
 /** A title already used, with how often and the category used last time (GET /api/suggestions). */
