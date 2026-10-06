@@ -190,7 +190,7 @@ function NewExpense() {
       {lastSaved && (
         <div
           role="status"
-          className="fixed inset-x-4 bottom-28 z-50 mx-auto max-w-md flex items-center justify-between gap-3 rounded-md bg-[#2b2b2b] border-card px-4 py-3 shadow-lg md:bottom-8"
+          className="fixed inset-x-4 bottom-[calc(9.5rem+env(safe-area-inset-bottom))] z-50 mx-auto max-w-md flex items-center justify-between gap-3 rounded-md bg-[#2b2b2b] border-card px-4 py-3 shadow-lg md:bottom-8"
         >
           <span className="text-sm truncate">
             {lastSaved.kind === "pending" ? "Guardado en pendientes" : `Guardado: ${lastSaved.label}`}

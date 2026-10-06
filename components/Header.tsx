@@ -19,7 +19,9 @@ export default function Header() {
   const pathname = usePathname();
 
   return (
-    <header className="header-bg shadow-md sticky top-0 z-50 pt-[env(safe-area-inset-top)]">
+    // Desktop only: on the phone, navigation is the BottomNav and "Salir" lives at the
+    // bottom of the home page, so the screen isn't spent on a bar with a single button
+    <header className="header-bg shadow-md sticky top-0 z-50 hidden md:block">
       <div className="max-w-6xl mx-auto flex justify-between items-center px-4 py-3 md:p-4">
         <Link href="/" className="text-lg md:text-xl font-bold">
           Expense Report

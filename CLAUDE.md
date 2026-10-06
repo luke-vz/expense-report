@@ -69,6 +69,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 | #20 | Lectura de tickets con IA (pendientes y Nuevo gasto) |
 | #21 | Docs: estado tras la lectura de tickets |
 | #22 | Gasto por voz desde Siri/widget (atajo de Atajos + claves personales) |
+| #23 | Barra inferior en todas las pantallas; sin encabezado en el celular |
 
 ## Arquitectura
 
@@ -149,8 +150,8 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
     - El 409 de duplicado se confirma con `confirm()`; si se cancela con una foto adjunta, se borra el pendiente subido para esa foto.
   - En la edición, eliminar usa `lib/deleteExpense.ts`, que pregunta si borrar la cuota sola o todas.
 - **Layout** (`app/layout.tsx`):
-  - `Header`: título y "Salir"; links (Home, Gastos, Nuevo Gasto, Pendientes, Dashboard, Categorías) solo en desktop.
-  - `BottomNav`: solo en el celular, con Inicio · Gastos · **+** · Dashboard · Pendientes (con globito). Se oculta en `/login` y en las pantallas del formulario, que fijan sus propios botones abajo.
+  - `Header`: **solo en desktop**, con el título, los links (Home, Gastos, Nuevo Gasto, Pendientes, Dashboard, Categorías) y "Salir". En el celular no hay encabezado (pedido del usuario: una barra solo con "Salir" sobraba). El `<main>` lleva `pt-[env(safe-area-inset-top)]` para no quedar bajo el notch, y "Conectado como … · Salir" está al pie de la home.
+  - `BottomNav`: solo en el celular, en **todas las pantallas menos `/login`**, también en el formulario (pedido del usuario), con Inicio · Gastos · **+** · Dashboard · Pendientes (con globito). Mide 3.75rem más el safe area: los botones fijos de `ExpenseForm` van pegados encima (`bottom-[calc(3.75rem+env(safe-area-inset-bottom))]`), y el aviso de "Deshacer" más arriba todavía.
 - **Pendientes ("pre-gasto")**:
   - `PendingExpense` (foto, monto y nota opcionales, `createdBy`, y lo que leyó la IA en `aiStatus` + `suggested*`) está separado de `Expense` para que nunca entre en totales ni gráficos.
   - Captura: `components/CaptureButton.tsx` usa un input de archivo **sin** `capture`, así el teléfono ofrece cámara o galería (sirve para capturas de Mercado Pago o home banking). Comprime en el cliente (`lib/compressImage.ts`: lado máximo 1600 px, JPEG 0,75 → ~150-400 KB) y sube a `POST /api/pending` (multipart).
@@ -286,6 +287,7 @@ Si el contenedor existe pero está apagado (pasa después de reiniciar la máqui
 
 - **Cliente de Prisma viejo en dev:** `lib/prisma.ts` cachea el cliente en `global`. Después de `prisma generate`/`migrate dev` hay que **reiniciar `npm run dev`**; si no, aparecen `PrismaClientValidationError` o `Cannot read properties of undefined (reading 'findMany')`.
 - **Frenar el dev server:** `pkill -f "next dev"` en un comando de shell **aparte**. Si el patrón aparece en el mismo comando que otras cosas, `pkill -f` también mata a ese shell (exit 144) y lo que sigue no corre.
+- **Errores de hidratación después de editar el layout:** si el dev server sigue corriendo mientras se cambian `Header`/`layout`, puede servir el HTML viejo de una página ya compilada y React avisa "A tree hydrated but some attributes… didn't match" (se ve como "1 Issue" en la pantalla). No es un bug del código: reiniciar con `rm -rf .next` y volver a mirar.
 - **`npm run build` con `npm run dev` corriendo** pisa `.next` y el dev server empieza a dar 500. Frenarlo antes, o reiniciarlo con `rm -rf .next && npm run dev -- -p 3100`.
 - **Vercel bloquea el deploy con versiones vulnerables de Next:** el build termina bien, pero el deploy falla con `Vulnerable version of Next.js detected`. Se ve con `npx vercel inspect <deployment> --logs`. Se resolvió subiendo Next a la última 15.5.x; ante un nuevo bloqueo, revisar `npm audit` y subir el patch. Quedan avisos de `postcss` (dentro de Next, solo se arregla con Next 16) y `deepmerge-ts`.
 - **PWA instalada:** cualquier página fuera del `scope` del manifest, o cualquier link con `target="_blank"`, se abre con interfaz de navegador (pasó con `scope` sin declarar: se derivaba de `start_url`). Si se cambia `start_url`, mantener `scope: "/"` explícito. Los cambios del manifest llegan a las apps ya instaladas recién al reinstalarlas (iOS) o con demora (Android). El login con Google siempre pasa un momento por `accounts.google.com`: es esperable.

@@ -18,12 +18,12 @@ const links = [
   { href: "/pending", label: "Pendientes", icon: icon("M4 8h3l2-3h6l2 3h3v11H4zM12 16.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7") },
 ];
 
-// Mobile-only tab bar with the quick-add button in the middle. Hidden on the login page
-// and on the expense form screens, which pin their own actions to the bottom.
+// Mobile-only tab bar with the quick-add button in the middle, on every screen but login.
+// The expense form pins its Guardar buttons right above it (see ExpenseForm).
 export default function BottomNav() {
   const pathname = usePathname();
   const pendingCount = usePendingCount();
-  if (pathname === "/login" || pathname === "/expenses/new" || pathname.endsWith("/edit")) return null;
+  if (pathname === "/login") return null;
 
   const item = (link: (typeof links)[number], badge = 0) => (
     <Link
