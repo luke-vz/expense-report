@@ -14,13 +14,14 @@ Producción: https://expense-report-mu.vercel.app (requiere una cuenta de Google
   - "Guardar y otro" con "Deshacer".
 - **Cuotas:** se carga el total y la cantidad, y se crea una cuota por mes ("Heladera 2/6"). La home muestra lo comprometido a futuro.
 - **Gasto por voz:** un toque en 🎤, decís "gasté 1500 en el supermercado" y el formulario se completa solo (lo interpreta Claude Haiku); después, Guardar. La primera vez, el teléfono pide permiso de micrófono y de reconocimiento de voz.
-- **Siri y widget de iPhone:** un atajo de la app Atajos ("Oye Siri, anotar gasto", widget o botón de acción) dicta el gasto y lo guarda sin abrir la app. Se configura desde la página "Siri y widget" (link en la home), que genera una clave personal y explica cómo armar el atajo.
+- **Siri y widget de iPhone:** un atajo de la app Atajos ("Oye Siri, anotar gasto", widget o botón de acción) dicta el gasto y lo guarda sin abrir la app. Se configura desde la página "Siri y widget" (link al pie de la home): genera una URL personal para pegar en el atajo, permite probarla sin guardar nada y explica paso a paso cómo armarlo. Si falta el monto o la categoría, o parece repetido, el gasto queda en Pendientes.
 - **Fotos de tickets leídas con IA:** al adjuntar la foto (ticket, factura o captura de Mercado Pago) se completan solos el total, el comercio, la categoría y la fecha. También se puede guardar la foto como **pendiente** y completarla después: la IA la lee en segundo plano.
 - **Aviso de duplicados:** si alguien ya cargó el mismo monto, en la misma categoría y el mismo día.
 - **Listado** agrupado por día, con quién cargó cada gasto.
 - **Dashboard por mes:** total y variación contra el mes anterior y el promedio de 3 meses, ranking de categorías, gastos más grandes y tendencia de 12 meses.
 - **Categorías** editables (renombrar, unir, borrar).
 - **Login con Google** restringido a una lista de mails.
+- **Pensada para el celular:** se instala como app, con una barra inferior siempre visible y el botón **+** para cargar desde cualquier pantalla.
 
 ## Stack
 
