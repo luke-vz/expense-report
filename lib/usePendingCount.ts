@@ -14,8 +14,9 @@ export function usePendingCount() {
   const [count, setCount] = useState(0);
 
   const refresh = useCallback(async () => {
-    const res = await fetch("/api/pending");
-    if (res.ok) setCount((await res.json()).length);
+    // Offline it keeps the last count instead of throwing
+    const res = await fetch("/api/pending").catch(() => null);
+    if (res?.ok) setCount((await res.json()).length);
   }, []);
 
   useEffect(() => {

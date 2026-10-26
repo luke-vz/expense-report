@@ -7,8 +7,8 @@ export function useCategories() {
   const [categories, setCategories] = useState<Category[]>([]);
 
   const reload = useCallback(async () => {
-    const res = await fetch("/api/categories");
-    if (res.ok) setCategories(await res.json());
+    const res = await fetch("/api/categories").catch(() => null); // offline: no categories
+    if (res?.ok) setCategories(await res.json());
   }, []);
 
   useEffect(() => {

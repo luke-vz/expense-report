@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
+import OfflineSync from "@/components/OfflineSync";
 
 export const metadata: Metadata = {
   title: "Expense Report",
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Without the header on the phone, keep content clear of the iPhone status bar/notch */}
         <main className="pt-[env(safe-area-inset-top)] md:pt-0">{children}</main>
         <BottomNav />
+        <OfflineSync />
       </body>
     </html>
   );

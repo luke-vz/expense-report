@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { savePhoto } from "@/lib/photos";
 import { serializePending } from "@/lib/pending";
 import { aiAvailable, argentinaToday, expenseFromReceipt } from "@/lib/expenseAi";
+import { CURRENCIES } from "@/lib/validation";
+import { MAX_INSTALLMENTS } from "@/lib/installments";
 
 // Compressed on the phone to ~200-400 KB; this is just a safety cap
 const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
@@ -16,8 +18,48 @@ export async function GET() {
   return NextResponse.json(pending.map(serializePending));
 }
 
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Optional suggested* fields: what the voice understood on the quick entry screen, plus the
+// day it was entered (an offline save can reach the server a day later). Same shape as what
+// the AI reads from a photo, so completing the pending prefills them the same way.
+async function suggestionFrom(form: FormData) {
+  const field = (name: string) => {
+    const value = form.get(name);
+    return typeof value === "string" && value.trim() ? value.trim() : null;
+  };
+  const amount = field("suggestedAmount");
+  const currency = field("suggestedCurrency");
+  const title = field("suggestedTitle");
+  const categoryId = field("suggestedCategoryId");
+  const date = field("suggestedDate");
+  const installments = field("suggestedInstallments");
+  if (!amount && !currency && !title && !categoryId && !date && !installments) return null;
+
+  const n = amount ? Number(amount) : null;
+  const count = installments ? Number(installments) : null;
+  if (n !== null && !(Number.isFinite(n) && n > 0 && n <= 9_999_999_999.99)) return "Invalid suggestedAmount";
+  if (currency && !CURRENCIES.includes(currency)) return "Invalid suggestedCurrency";
+  if (date && (!DATE.test(date) || Number.isNaN(Date.parse(date)))) return "Invalid suggestedDate";
+  if (count !== null && !(Number.isInteger(count) && count >= 2 && count <= MAX_INSTALLMENTS)) {
+    return "Invalid suggestedInstallments";
+  }
+  if (title && title.length > 200) return "Invalid suggestedTitle";
+  // An unknown category is dropped, not rejected: it may have been merged meanwhile
+  const category = categoryId ? await prisma.category.findUnique({ where: { id: categoryId }, select: { id: true } }) : null;
+  return {
+    suggestedAmount: n !== null ? new Prisma.Decimal(n.toFixed(2)) : null,
+    suggestedCurrency: currency,
+    suggestedTitle: title,
+    suggestedCategoryId: category?.id ?? null,
+    suggestedDate: date ? new Date(date) : null,
+    suggestedInstallments: count,
+  };
+}
+
 // POST /api/pending — multipart form: photo (image/jpeg, optional), amount, note,
-// skipAi ("1" when the photo is only being attached to an expense saved right away)
+// skipAi ("1" when the photo is only being attached to an expense saved right away),
+// and the optional suggested* fields (see suggestionFrom)
 export async function POST(req: NextRequest) {
   const form = await req.formData().catch(() => null);
   if (!form) return NextResponse.json({ error: "Expected multipart form data" }, { status: 400 });
@@ -47,11 +89,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "A photo or an amount is required" }, { status: 400 });
   }
 
+  const suggestion = await suggestionFrom(form);
+  if (typeof suggestion === "string") return NextResponse.json({ error: suggestion }, { status: 400 });
+
   const session = await getServerSession(authOptions);
   const photoKey = photo ? await savePhoto(photo) : null;
   const readPhoto = Boolean(photo) && form.get("skipAi") !== "1" && aiAvailable();
   const pending = await prisma.pendingExpense.create({
-    data: { photoKey, amount, note, createdBy: session?.user?.email ?? null, aiStatus: readPhoto ? "reading" : null },
+    data: {
+      photoKey,
+      amount,
+      note,
+      createdBy: session?.user?.email ?? null,
+      // A reading photo fills the suggestion later; otherwise the sent one counts as read
+      aiStatus: readPhoto ? "reading" : suggestion ? "done" : null,
+      ...(!readPhoto && suggestion),
+    },
   });
 
   // Capture stays instant: the AI reads the photo after the response is sent

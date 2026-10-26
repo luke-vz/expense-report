@@ -214,7 +214,7 @@ body {
   border-radius: 50%;
   border: 2px solid var(--accent-ink);
   border-right-color: transparent;
-  animation: spin 0.8s linear infinite;
+  animation: spin 0.9s linear infinite;
 }
 @keyframes spin {
   to {
@@ -277,6 +277,83 @@ body {
 .amount-panel input::placeholder {
   /* Large text: --placeholder meets the 3:1 minimum for 72px */
   color: var(--placeholder);
+}
+
+/* Quick entry: the round 84px save button */
+.fab-save {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--raised);
+  font-size: 44px;
+  font-weight: 400;
+  line-height: 1;
+  transition: box-shadow 120ms ease;
+}
+.fab-save:active:not(:disabled) {
+  box-shadow: var(--pressed);
+}
+.fab-save:disabled {
+  background: var(--bg);
+  color: var(--placeholder);
+  box-shadow: var(--pressed);
+}
+.fab-save[aria-busy="true"]:disabled {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--raised);
+  cursor: progress;
+}
+.fab-save .spinner {
+  width: 28px;
+  height: 28px;
+  border-width: 3px;
+}
+
+/* Amount input that grows with what's typed: field-sizing where supported (Chrome),
+   otherwise the width the page sets in --chars (Safari, Firefox) */
+.amount-input {
+  width: calc(var(--chars, 1) * 1ch + 0.1em);
+  max-width: 100%;
+  min-width: 1ch;
+  background: transparent;
+  color: var(--ink);
+  outline: none;
+  text-align: center;
+}
+@supports (field-sizing: content) {
+  .amount-input {
+    field-sizing: content;
+    width: auto;
+  }
+}
+
+/* Floating tab bar items (also used by the quick entry bar): 64×52, active = pressed */
+.tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 64px;
+  height: 52px;
+  border-radius: var(--radius-card);
+  color: var(--ink-muted);
+}
+.tab-item-active,
+.tab-item[aria-current="page"] {
+  box-shadow: var(--pressed);
+  color: var(--accent-text);
+}
+/* The camera item is a <label> around a hidden file input: show the ring when it's focused */
+.tab-item:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 /* ============================================================

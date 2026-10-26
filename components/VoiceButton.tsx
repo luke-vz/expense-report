@@ -1,7 +1,7 @@
 // components/VoiceButton.tsx
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export interface VoiceResult {
   amount: number | null;
@@ -38,20 +38,32 @@ const ERRORS: Record<string, string> = {
   network: "Sin conexión para reconocer la voz.",
 };
 
-type State = "idle" | "listening" | "thinking";
+export type VoiceState = "idle" | "listening" | "thinking";
+type State = VoiceState;
 
 interface VoiceButtonProps {
   today: string;
   onResult: (result: VoiceResult, transcript: string) => void;
   onError: (message: string) => void;
+  /**
+   * Icon-only button for a tab bar (64×52). It's hidden where the browser has no speech
+   * recognition, and the words heard go to onProgress for the page to show.
+   */
+  compact?: boolean;
+  onProgress?: (state: VoiceState, transcript: string) => void;
 }
 
 // One tap: listen, transcribe (browser), interpret (Claude via /api/voice), fill the form.
 // Stops by itself when the person stops talking; tapping again stops early.
-export default function VoiceButton({ today, onResult, onError }: VoiceButtonProps) {
+export default function VoiceButton({ today, onResult, onError, compact = false, onProgress }: VoiceButtonProps) {
   const [state, setState] = useState<State>("idle");
   const [transcript, setTranscript] = useState("");
   const recognition = useRef<Recognition | null>(null);
+  // Known only in the browser: decided after mounting so the server HTML matches
+  const [supported, setSupported] = useState<boolean | null>(null);
+
+  useEffect(() => setSupported(Boolean(getRecognition())), []);
+  useEffect(() => onProgress?.(state, transcript), [onProgress, state, transcript]);
 
   const interpret = async (text: string) => {
     setState("thinking");
@@ -110,6 +122,24 @@ export default function VoiceButton({ today, onResult, onError }: VoiceButtonPro
     if (state === "listening") recognition.current?.stop();
     else if (state === "idle") start();
   };
+
+  if (compact) {
+    if (!supported) return null;
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={state === "thinking"}
+        aria-label={state === "listening" ? "Terminar de dictar" : "Decí el gasto"}
+        aria-pressed={state !== "idle"}
+        className={`tab-item ${state !== "idle" ? "tab-item-active" : ""}`}
+      >
+        <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3" />
+        </svg>
+      </button>
+    );
+  }
 
   return (
     <button
