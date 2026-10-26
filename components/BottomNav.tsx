@@ -12,7 +12,7 @@ const icon = (d: string) => (
 );
 
 const links = [
-  { href: "/", label: "Inicio", icon: icon("M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10") },
+  { href: "/home", label: "Inicio", icon: icon("M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10") },
   { href: "/expenses", label: "Gastos", icon: icon("M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01") },
   { href: "/dashboard", label: "Dashboard", icon: icon("M4 20V10M10 20V4M16 20v-7M22 20H2") },
   { href: "/pending", label: "Pendientes", icon: icon("M4 8h3l2-3h6l2 3h3v11H4zM12 16.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7") },
@@ -24,7 +24,7 @@ const links = [
 export default function BottomNav() {
   const pathname = usePathname();
   const pendingCount = usePendingCount();
-  if (pathname === "/login" || pathname === "/quick") return null;
+  if (pathname === "/login" || pathname === "/") return null;
 
   const item = (link: (typeof links)[number], badge = 0) => {
     const active = pathname === link.href;
@@ -60,7 +60,7 @@ export default function BottomNav() {
         {item(links[1])}
         {/* Quick entry (amount + "+"); the full form stays on the home's "Cargar gasto" */}
         <Link
-          href="/quick"
+          href="/"
           aria-label="Cargar gasto"
           className="flex h-[52px] w-16 items-center justify-center"
         >

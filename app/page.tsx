@@ -1,136 +1,245 @@
 // app/page.tsx
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { signOut } from "next-auth/react";
-import { useEffect, useState } from "react";
 import CaptureButton from "@/components/CaptureButton";
-import type { Expense } from "@/lib/expenses";
-import { usePendingCount } from "@/lib/usePendingCount";
-import { currentMonthKey, expenseTitle, formatAmount, formatDate, monthKey, todayISO } from "@/lib/format";
+import VoiceButton, { type VoiceResult, type VoiceState } from "@/components/VoiceButton";
+import { useCategories } from "@/lib/useCategories";
+import { formatAmount, formatDate, parseAmount, toAmountInput, todayISO } from "@/lib/format";
+import { savePending } from "@/lib/pendingQueue";
+import { limitExcess } from "@/lib/spendingLimit";
 
-/** { ARS: 1500, USD: 20 } — totals are never mixed across currencies */
-const totalsByCurrency = (list: Expense[]) =>
-  list.reduce<Record<string, number>>((acc, exp) => {
-    const currency = exp.currency ?? "ARS";
-    acc[currency] = (acc[currency] ?? 0) + exp.amount;
-    return acc;
-  }, {});
+// No spending limit exists yet (savings and budgets are on hold): with null the "supera
+// límite" state never shows. See lib/spendingLimit.ts.
+const SPENDING_LIMIT: number | null = null;
 
-export default function HomePage() {
-  const [expenses, setExpenses] = useState<Expense[] | null>(null);
-  const [userName, setUserName] = useState<string | null>(null);
-  const pendingCount = usePendingCount();
+const icon = (d: string) => (
+  <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d={d} />
+  </svg>
+);
+const CAMERA = icon("M4 8h3l2-3h6l2 3h3v11H4zM12 16.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7");
+const MENU = icon("M4 7h16M4 12h16M4 17h16");
 
+// With the keyboard open (iOS doesn't resize the page for it) the content is laid out in the
+// visible area, so the + button stays reachable above the keyboard
+function useKeyboardHeight() {
+  const [visible, setVisible] = useState<number | null>(null);
   useEffect(() => {
-    fetch("/api/auth/session").then(async (res) => {
-      const session = res.ok ? await res.json() : null;
-      setUserName(session?.user?.name?.split(" ")[0] ?? session?.user?.email ?? null);
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setVisible(vv.height < window.innerHeight - 120 ? vv.height : null);
+    vv.addEventListener("resize", update);
+    return () => vv.removeEventListener("resize", update);
+  }, []);
+  return visible;
+}
+
+type Flash = { text: string; error?: boolean };
+
+// Quick entry, the app's start screen ("/"; the summary home is /home): type the amount, tap +. It's saved
+// as a pending expense (no category yet) to finish later in Pendientes, and it works
+// offline (lib/pendingQueue.ts). Camera and voice work like in Nuevo gasto: the photo is
+// read with AI in the background, and voice understands whole sentences.
+export default function QuickEntryPage() {
+  const { categories } = useCategories();
+  const [amount, setAmount] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [flash, setFlash] = useState<Flash | null>(null);
+  // What the voice understood besides the amount, kept as the pending's suggestion
+  const [suggestion, setSuggestion] = useState<VoiceResult | null>(null);
+  const [heard, setHeard] = useState<{ text: string; complete: boolean } | null>(null);
+  const [voice, setVoice] = useState<{ state: VoiceState; transcript: string }>({ state: "idle", transcript: "" });
+  const flashTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const keyboardHeight = useKeyboardHeight();
+
+  const value = parseAmount(amount);
+  const valid = value > 0;
+  const currency = suggestion?.currency ?? "ARS";
+  const excess = limitExcess(valid ? value : 0, 0, SPENDING_LIMIT);
+
+  const showFlash = (next: Flash) => {
+    clearTimeout(flashTimer.current);
+    setFlash(next);
+    flashTimer.current = setTimeout(() => setFlash(null), 3500);
+  };
+  useEffect(() => () => clearTimeout(flashTimer.current), []);
+
+  const onVoiceProgress = useCallback((state: VoiceState, transcript: string) => setVoice({ state, transcript }), []);
+
+  const onVoiceResult = (result: VoiceResult) => {
+    // Only a valid amount fills the field; the rest rides along as the pending's suggestion
+    if (!result.amount) {
+      setHeard({ text: "No entendí el monto. Probá de nuevo.", complete: false });
+      return;
+    }
+    setAmount(toAmountInput(result.amount));
+    setSuggestion(result);
+    const category = categories.find((c) => c.id === result.categoryId);
+    const parts = [
+      formatAmount(result.amount, result.currency),
+      result.title,
+      category?.name,
+      result.date !== todayISO() && formatDate(result.date),
+      result.installments && `${result.installments} cuotas`,
+    ].filter(Boolean);
+    setHeard({ text: `Entendí: ${parts.join(" · ")}`, complete: true });
+  };
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!valid || saving) return;
+    setSaving(true);
+    setFlash(null);
+    let result: Awaited<ReturnType<typeof savePending>>;
+    try {
+      result = await savePending({
+        amount: value,
+        // The day it was entered: an offline save can reach the server tomorrow
+        suggestedDate: suggestion?.date ?? todayISO(),
+        ...(suggestion && {
+          suggestedAmount: suggestion.amount ?? undefined,
+          suggestedCurrency: suggestion.currency,
+          suggestedTitle: suggestion.title ?? undefined,
+          suggestedCategoryId: suggestion.categoryId ?? undefined,
+          suggestedInstallments: suggestion.installments ?? undefined,
+        }),
+      });
+    } catch {
+      result = "error";
+    }
+    setSaving(false);
+    if (result === "error") {
+      showFlash({ text: "No se pudo guardar. Probá de nuevo.", error: true });
+      return;
+    }
+    setAmount("");
+    setSuggestion(null);
+    setHeard(null);
+    showFlash({
+      text:
+        result === "queued"
+          ? "Sin conexión: quedó en este teléfono y se guarda al volver la conexión"
+          : "Guardado en pendientes",
     });
-  }, []);
+  };
 
-  useEffect(() => {
-    const fetchExpenses = async () => {
-      const res = await fetch("/api/expenses");
-      setExpenses(res.ok ? await res.json() : []);
-    };
-    fetchExpenses();
-  }, []);
-
-  const month = currentMonthKey();
-  const monthName = new Date(`${month}-01T12:00:00`).toLocaleString("es-AR", { month: "long", year: "numeric" });
-  const monthExpenses = (expenses ?? []).filter((exp) => monthKey(exp.date) === month);
-  const monthlyTotals = totalsByCurrency(monthExpenses);
-  const today = todayISO();
-  // The API returns newest first, which puts future installments on top: skip those
-  const latest = (expenses ?? []).filter((exp) => exp.date.slice(0, 10) <= today).slice(0, 5);
-  // Installments still to be paid after this month
-  const committed = (expenses ?? []).filter((exp) => exp.installmentGroupId && monthKey(exp.date) > month);
-  const committedTotals = totalsByCurrency(committed);
+  const help: Flash = saving
+    ? { text: "Guardando gasto…" }
+    : voice.state === "listening"
+      ? { text: voice.transcript || "Escuchando… (tocá para terminar)" }
+      : voice.state === "thinking"
+        ? { text: `Entendiendo “${voice.transcript}”…` }
+        : flash ?? (heard && !heard.complete ? { text: heard.text, error: true } : null) ??
+          (valid ? { text: heard?.text ?? "Tocá + para guardar" } : { text: "Ingresá el monto" });
 
   return (
-    <div className="max-w-xl mx-auto px-4 py-6 space-y-6">
-      <section className="bg-secundario border-card rounded-md p-5">
-        <h2 className="text-sm text-ink-muted">Total de {monthName}</h2>
-        <p className="mt-1 text-4xl font-bold">{formatAmount(monthlyTotals.ARS ?? 0)}</p>
-        {monthlyTotals.USD !== undefined && (
-          <p className="text-2xl font-bold text-ink">{formatAmount(monthlyTotals.USD, "USD")}</p>
-        )}
-        <p className="mt-1 text-sm text-ink-muted">
-          {expenses === null ? "Cargando..." : `${monthExpenses.length} gastos`}
-        </p>
-        {committed.length > 0 && (
-          <p className="mt-3 border-t border-line pt-3 text-sm text-ink-muted">
-            Cuotas a futuro:{" "}
-            {Object.entries(committedTotals)
-              .map(([currency, total]) => formatAmount(total, currency))
-              .join(" + ")}
-          </p>
-        )}
-      </section>
+    <>
+      <form
+        onSubmit={save}
+        style={keyboardHeight ? { minHeight: keyboardHeight, paddingBottom: 16 } : undefined}
+        className="mx-auto flex min-h-[calc(100dvh-env(safe-area-inset-top))] max-w-md flex-col px-4 pt-16 pb-[calc(104px+env(safe-area-inset-bottom))]"
+      >
+        <h1 className="text-center text-[15px] font-semibold text-ink-muted">Nuevo gasto · hoy</h1>
 
-      {pendingCount > 0 && (
-        <Link
-          href="/pending"
-          className="flex items-center justify-between rounded-md border border-accent bg-accent/20 px-4 py-3"
-        >
-          <span>
-            Tenés <strong>{pendingCount}</strong> {pendingCount === 1 ? "gasto" : "gastos"} para completar
-          </span>
-          <span className="text-accent-text font-semibold">Ver →</span>
-        </Link>
-      )}
+        <div className="flex flex-1 flex-col items-center justify-center gap-5 py-6">
+          <div className="amount-panel w-full" data-alert={excess ? "true" : undefined}>
+            <label className="flex items-baseline justify-center gap-1">
+              <span className="sr-only">Monto</span>
+              <span className={`text-[32px] font-bold ${excess ? "text-alert-text" : "text-ink-muted"}`} aria-hidden>
+                {currency === "USD" ? "US$" : "$"}
+              </span>
+              <input
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder="0"
+                value={amount}
+                readOnly={saving}
+                onChange={(e) => {
+                  setAmount(e.target.value);
+                  setFlash(null);
+                  if (heard && !heard.complete) setHeard(null);
+                }}
+                aria-invalid={excess ? true : undefined}
+                aria-describedby={excess ? "quick-limit" : "quick-help"}
+                // --chars is the fallback width where field-sizing isn't supported (Safari);
+                // long amounts shrink from 72px so they still fit a 390px screen
+                style={
+                  {
+                    "--chars": Math.max(amount.length, 1),
+                    fontSize: amount.length > 9 ? 44 : amount.length > 6 ? 56 : undefined,
+                  } as React.CSSProperties
+                }
+                className="amount-input text-display"
+              />
+            </label>
+          </div>
 
-      <div className="flex gap-3">
-        <Link
-          href="/expenses/new"
-          className="flex flex-1 items-center justify-center gap-2 rounded-md bg-accent py-4 text-lg font-semibold text-accent-ink"
-        >
-          <span className="text-2xl leading-none">+</span> Cargar gasto
-        </Link>
-        <CaptureButton className="flex items-center justify-center rounded-md bg-boton px-5 text-2xl" >
-          <span aria-label="Sacar foto para completar después">📷</span>
-        </CaptureButton>
-      </div>
-
-      <section>
-        <div className="flex items-baseline justify-between mb-2">
-          <h2 className="font-semibold">Últimos gastos</h2>
-          <Link href="/expenses" className="text-sm text-accent-text">
-            Ver todos
-          </Link>
-        </div>
-        <ul className="bg-secundario border-card rounded-md divide-y divide-line">
-          {latest.map((exp) => (
-            <li key={exp.id}>
-              <Link href={`/expenses/${exp.id}/edit`} className="flex items-center justify-between gap-3 p-3">
-                <span className="min-w-0">
-                  <span className="block truncate">{expenseTitle(exp)}</span>
-                  <span className="block text-xs text-ink-muted">
-                    {exp.category.name} · {formatDate(exp.date)}
-                  </span>
-                </span>
-                <span className="shrink-0 font-semibold">{formatAmount(exp.amount, exp.currency)}</span>
-              </Link>
-            </li>
-          ))}
-          {expenses !== null && latest.length === 0 && (
-            <li className="p-3 text-center text-ink-muted">Todavía no hay gastos</li>
+          {excess && (
+            <p id="quick-limit" role="alert" className="flex items-center gap-2 text-alert-text">
+              <span aria-hidden>⚠</span>
+              Supera el límite del mes en {formatAmount(excess, currency)}
+            </p>
           )}
-        </ul>
-      </section>
 
-      <Link href="/shortcuts" className="block text-center text-sm text-accent-text">
-        📱 Cargar gastos con Siri o un widget
-      </Link>
+          <p
+            id="quick-help"
+            role="status"
+            className={`min-h-[1.5em] text-center text-[15px] font-medium ${help.error ? "text-alert-text" : "text-ink-muted"}`}
+          >
+            {help.error && <span aria-hidden>⚠ </span>}
+            {help.text}
+          </p>
 
-      {/* On the phone there is no header: the session lives here */}
-      <p className="text-center text-xs text-ink-muted">
-        {userName && <>Conectado como {userName} · </>}
-        <button onClick={() => signOut({ callbackUrl: "/login" })} className="underline">
-          Salir
-        </button>
-      </p>
-    </div>
+          <button
+            type="submit"
+            disabled={!valid || saving}
+            aria-busy={saving}
+            aria-label={saving ? "Guardando gasto" : "Guardar gasto"}
+            className="fab-save"
+          >
+            {saving ? <span className="spinner" aria-hidden /> : <span aria-hidden>+</span>}
+          </button>
+        </div>
+      </form>
+
+      {!keyboardHeight && (
+        <nav
+          aria-label="Acciones"
+          className="fixed inset-x-4 bottom-[calc(16px+env(safe-area-inset-bottom))] z-40 mx-auto flex h-[72px] max-w-md items-center justify-around rounded-pill bg-bg px-2 shadow-raised"
+        >
+          <CaptureButton
+            className="tab-item"
+            ariaLabel="Foto del ticket"
+            initialAmount={amount}
+            onSaved={(result) => {
+              setAmount("");
+              setSuggestion(null);
+              setHeard(null);
+              showFlash({
+                text:
+                  result === "queued"
+                    ? "Sin conexión: quedó en este teléfono y se guarda al volver la conexión"
+                    : "Guardado en pendientes",
+              });
+            }}
+          >
+            {CAMERA}
+          </CaptureButton>
+          <VoiceButton
+            compact
+            today={todayISO()}
+            onResult={onVoiceResult}
+            onError={(text) => setHeard({ text, complete: false })}
+            onProgress={onVoiceProgress}
+          />
+          <Link href="/home" aria-label="Menú" className="tab-item">
+            {MENU}
+          </Link>
+        </nav>
+      )}
+    </>
   );
 }
