@@ -59,7 +59,7 @@ export default function EditExpensePage() {
     router.push("/expenses");
   };
 
-  if (loadError) return <p className="p-6 text-red-500">{loadError}</p>;
+  if (loadError) return <p className="p-6 text-alert-text">{loadError}</p>;
   if (!initialValues) return <p className="p-6">Cargando...</p>;
 
   return (

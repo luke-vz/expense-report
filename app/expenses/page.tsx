@@ -60,7 +60,7 @@ export default function ExpensesPage() {
     <div className="max-w-2xl mx-auto px-4 py-6">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Gastos</h1>
-        <Link href="/categories" className="text-sm text-[#3987e5]">
+        <Link href="/categories" className="text-sm text-accent-text">
           Categorías
         </Link>
       </div>
@@ -85,24 +85,24 @@ export default function ExpensesPage() {
       </div>
 
       {filtered.length > 0 && (
-        <p className="mb-4 text-sm text-gray-400">
+        <p className="mb-4 text-sm text-ink-muted">
           {filtered.length} gastos · {totalsLabel(filtered)}
         </p>
       )}
 
-      {expenses === null && <p className="text-gray-500">Cargando...</p>}
+      {expenses === null && <p className="text-ink-muted">Cargando...</p>}
       {expenses !== null && filtered.length === 0 && (
-        <p className="py-8 text-center text-gray-500">No hay gastos para este filtro.</p>
+        <p className="py-8 text-center text-ink-muted">No hay gastos para este filtro.</p>
       )}
 
       <div className="space-y-5">
         {days.map(([day, list]) => (
           <section key={day}>
             <div className="flex items-baseline justify-between px-1 mb-1 text-sm">
-              <h2 className="font-semibold text-gray-300">{dayHeading(day)}</h2>
-              <span className="text-gray-400">{totalsLabel(list)}</span>
+              <h2 className="font-semibold text-ink">{dayHeading(day)}</h2>
+              <span className="text-ink-muted">{totalsLabel(list)}</span>
             </div>
-            <ul className="bg-secundario border-card rounded-md divide-y divide-[#3c3c3c]">
+            <ul className="bg-secundario border-card rounded-md divide-y divide-line">
               {list.map((exp) => (
                 <li key={exp.id}>
                   <Link href={`/expenses/${exp.id}/edit`} className="flex items-center justify-between gap-3 p-3">
@@ -111,7 +111,7 @@ export default function ExpensesPage() {
                         {expenseTitle(exp)}
                         {exp.receiptUrl && <span className="ml-1 text-xs" aria-label="con foto">📎</span>}
                       </span>
-                      <span className="block text-xs text-gray-500">
+                      <span className="block text-xs text-ink-muted">
                         {exp.category.name}
                         {firstName(exp.createdByName) && ` · ${firstName(exp.createdByName)}`}
                       </span>

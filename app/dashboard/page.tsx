@@ -6,12 +6,13 @@ import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, Cartes
 import type { Expense } from "@/lib/expenses";
 import { currentMonthKey, expenseTitle, formatAmount, formatDate, monthKey, monthLabel, shiftMonth } from "@/lib/format";
 
-// Selected month in the action blue (validated against the #2b2b2b cards); the other
-// months recede in gray so the selection reads at a glance
-const BAR_COLOR = "#3987e5";
-const MUTED_BAR = "#4b5563";
-const AXIS_COLOR = "#9ca3af";
-const GRID_COLOR = "#3c3c3c";
+// Design system tokens (they switch with the light/dark theme). The selected month uses the
+// accent *text* tone: the pale --accent fill would be under 3:1 on the light background.
+// The other months recede in the placeholder gray so the selection reads at a glance.
+const BAR_COLOR = "var(--accent-text)";
+const MUTED_BAR = "var(--placeholder)";
+const AXIS_COLOR = "var(--ink-muted)";
+const GRID_COLOR = "var(--shadow-dark)";
 const MONTHS_IN_CHART = 12;
 
 const sum = (list: Expense[]) => list.reduce((total, exp) => total + exp.amount, 0);
@@ -29,10 +30,10 @@ function percentChange(value: number, reference: number): number | null {
 
 // More spending is the bad direction: up = red, down = green, always with an arrow and sign
 function Delta({ change, label }: { change: number | null; label: string }) {
-  if (change === null) return <span className="text-gray-500">— {label}</span>;
+  if (change === null) return <span className="text-ink-muted">— {label}</span>;
   const rounded = Math.round(change);
   const up = rounded > 0;
-  const color = rounded === 0 ? "text-gray-400" : up ? "text-red-400" : "text-green-400";
+  const color = rounded === 0 ? "text-ink-muted" : up ? "text-alert-text" : "text-accent-text";
   return (
     <span className={color}>
       {rounded === 0 ? "=" : up ? "▲" : "▼"} {up ? "+" : rounded < 0 ? "−" : ""}
@@ -96,7 +97,7 @@ export default function DashboardPage() {
           <button
             onClick={() => setMonth(shiftMonth(month, -1))}
             aria-label="Mes anterior"
-            className="h-10 w-10 rounded-full border border-[#616161] text-lg"
+            className="h-10 w-10 rounded-full border border-line text-lg"
           >
             ‹
           </button>
@@ -104,7 +105,7 @@ export default function DashboardPage() {
           <button
             onClick={() => setMonth(shiftMonth(month, 1))}
             aria-label="Mes siguiente"
-            className="h-10 w-10 rounded-full border border-[#616161] text-lg"
+            className="h-10 w-10 rounded-full border border-line text-lg"
           >
             ›
           </button>
@@ -118,7 +119,7 @@ export default function DashboardPage() {
                 aria-selected={currency === c}
                 onClick={() => setCurrency(c)}
                 className={`px-4 py-1 rounded-full border text-sm ${
-                  currency === c ? "bg-[#3987e5] border-[#3987e5] text-white" : "border-[#616161] text-gray-300"
+                  currency === c ? "bg-accent border-accent text-accent-ink" : "border-line text-ink"
                 }`}
               >
                 {c}
@@ -130,20 +131,20 @@ export default function DashboardPage() {
 
       {/* Headline numbers */}
       <section className="bg-secundario border-card rounded-md p-5">
-        <p className="text-sm text-gray-400">Total del mes</p>
+        <p className="text-sm text-ink-muted">Total del mes</p>
         <p className="mt-1 text-4xl font-bold">{formatAmount(total, currency)}</p>
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
           <Delta change={percentChange(total, previousTotal)} label="vs mes anterior" />
           <Delta change={percentChange(total, average3)} label="vs promedio 3 meses" />
         </div>
-        <p className="mt-2 text-sm text-gray-500">{current.length} gastos</p>
+        <p className="mt-2 text-sm text-ink-muted">{current.length} gastos</p>
       </section>
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Where the money went this month */}
         <section className="bg-secundario border-card rounded-md p-4">
           <h2 className="text-lg font-semibold mb-3">Por categoría</h2>
-          {ranking.length === 0 && <p className="text-gray-500">No hay gastos en este mes.</p>}
+          {ranking.length === 0 && <p className="text-ink-muted">No hay gastos en este mes.</p>}
           <ul className="space-y-3">
             {ranking.map((row) => (
               <li key={row.category}>
@@ -151,10 +152,10 @@ export default function DashboardPage() {
                   <span className="font-medium">{row.category}</span>
                   <span>
                     {formatAmount(row.amount, currency)}{" "}
-                    <span className="text-gray-400">· {Math.round((row.amount / total) * 100)}%</span>
+                    <span className="text-ink-muted">· {Math.round((row.amount / total) * 100)}%</span>
                   </span>
                 </div>
-                <div className="mt-1 h-2 rounded bg-[#3c3c3c]">
+                <div className="mt-1 h-2 rounded bg-line">
                   <div
                     className="h-2 rounded"
                     style={{ width: `${(row.amount / maxCategory) * 100}%`, background: BAR_COLOR }}
@@ -171,14 +172,14 @@ export default function DashboardPage() {
         {/* Biggest expenses of the month */}
         <section className="bg-secundario border-card rounded-md p-4">
           <h2 className="text-lg font-semibold mb-3">Gastos más grandes</h2>
-          {biggest.length === 0 && <p className="text-gray-500">No hay gastos en este mes.</p>}
-          <ul className="divide-y divide-[#3c3c3c]">
+          {biggest.length === 0 && <p className="text-ink-muted">No hay gastos en este mes.</p>}
+          <ul className="divide-y divide-line">
             {biggest.map((exp) => (
               <li key={exp.id}>
                 <Link href={`/expenses/${exp.id}/edit`} className="flex items-center justify-between gap-3 py-2">
                   <span className="min-w-0">
                     <span className="block truncate">{expenseTitle(exp)}</span>
-                    <span className="block text-xs text-gray-500">
+                    <span className="block text-xs text-ink-muted">
                       {exp.category.name} · {formatDate(exp.date)}
                     </span>
                   </span>
@@ -206,10 +207,10 @@ export default function DashboardPage() {
             <YAxis tickFormatter={formatAxis(currency)} stroke={AXIS_COLOR} fontSize={11} width={52} />
             <Tooltip
               formatter={(value: number) => [formatAmount(value, currency), "Total"]}
-              cursor={{ fill: "rgba(255,255,255,0.05)" }}
-              contentStyle={{ background: "#121212", border: "1px solid #616161", borderRadius: 6 }}
-              labelStyle={{ color: "#d1d5db" }}
-              itemStyle={{ color: "#d1d5db" }}
+              cursor={{ fill: "var(--shadow-dark)", fillOpacity: 0.4 }}
+              contentStyle={{ background: "var(--surface)", border: "none", borderRadius: 12, boxShadow: "var(--raised)" }}
+              labelStyle={{ color: "var(--ink)" }}
+              itemStyle={{ color: "var(--ink)" }}
             />
             <Bar dataKey="amount" maxBarSize={28} radius={[4, 4, 0, 0]} className="cursor-pointer">
               {byMonth.map((row) => (

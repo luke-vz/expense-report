@@ -18,44 +18,53 @@ const links = [
   { href: "/pending", label: "Pendientes", icon: icon("M4 8h3l2-3h6l2 3h3v11H4zM12 16.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7") },
 ];
 
-// Mobile-only tab bar with the quick-add button in the middle, on every screen but login.
+// Mobile-only floating tab bar (design system: 72px tall, pill radius, raised, 16px above
+// the safe area), on every screen but login. Items are 64×52; the active one is pressed.
 // The expense form pins its Guardar buttons right above it (see ExpenseForm).
 export default function BottomNav() {
   const pathname = usePathname();
   const pendingCount = usePendingCount();
   if (pathname === "/login") return null;
 
-  const item = (link: (typeof links)[number], badge = 0) => (
-    <Link
-      key={link.href}
-      href={link.href}
-      className={`relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] ${
-        pathname === link.href ? "text-[#3987e5]" : "text-gray-400"
-      }`}
-    >
-      {link.icon}
-      {link.label}
-      {badge > 0 && (
-        <span className="absolute top-1 left-1/2 ml-2 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[11px] leading-5 text-center">
-          {badge}
-        </span>
-      )}
-    </Link>
-  );
+  const item = (link: (typeof links)[number], badge = 0) => {
+    const active = pathname === link.href;
+    return (
+      <Link
+        key={link.href}
+        href={link.href}
+        aria-current={active ? "page" : undefined}
+        className={`relative flex h-[52px] w-16 flex-col items-center justify-center gap-0.5 rounded-card text-[11px] font-semibold ${
+          active ? "text-accent-text shadow-pressed" : "text-ink-muted"
+        }`}
+      >
+        {link.icon}
+        {link.label}
+        {badge > 0 && (
+          <span className="absolute top-0.5 right-1 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[11px] leading-5 text-center">
+            {badge}
+          </span>
+        )}
+      </Link>
+    );
+  };
 
   return (
     <>
-      {/* Spacer so page content never ends up under the fixed bar */}
-      <div className="h-24 md:hidden" aria-hidden />
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 flex items-end bg-[#040404] border-t border-[#2b2b2b] pb-[env(safe-area-inset-bottom)]">
+      {/* Spacer so page content never ends up under the floating bar (72 + 16 + breathing room) */}
+      <div className="h-[calc(104px+env(safe-area-inset-bottom))] md:hidden" aria-hidden />
+      <nav
+        aria-label="Navegación principal"
+        className="md:hidden fixed inset-x-4 bottom-[calc(16px+env(safe-area-inset-bottom))] z-40 flex h-[72px] items-center justify-around rounded-pill bg-bg px-2 shadow-raised"
+      >
         {item(links[0])}
         {item(links[1])}
         <Link
           href="/expenses/new"
           aria-label="Cargar gasto"
-          className="flex flex-1 justify-center -mt-6"
+          aria-current={pathname === "/expenses/new" ? "page" : undefined}
+          className="flex h-[52px] w-16 items-center justify-center"
         >
-          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#3987e5] text-white text-3xl shadow-lg">
+          <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-accent text-3xl text-accent-ink shadow-raised">
             +
           </span>
         </Link>

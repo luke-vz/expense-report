@@ -27,7 +27,7 @@ function Copyable({ value, label }: { value: string; label: string }) {
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
         }}
-        className="shrink-0 rounded-md bg-[#3987e5] px-4 py-2 text-sm font-semibold text-white"
+        className="shrink-0 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-ink"
       >
         {copied ? "Copiada ✓" : "Copiar"}
       </button>
@@ -39,12 +39,12 @@ function Copyable({ value, label }: { value: string; label: string }) {
 function Action({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
     <li className="flex gap-3">
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#3987e5] text-sm font-bold text-white">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-bold text-accent-ink">
         {n}
       </span>
       <div className="min-w-0 text-sm">
         <p className="font-semibold">{title}</p>
-        <div className="mt-1 space-y-1 text-gray-300">{children}</div>
+        <div className="mt-1 space-y-1 text-ink">{children}</div>
       </div>
     </li>
   );
@@ -114,7 +114,7 @@ export default function ShortcutsPage() {
     <div className="max-w-xl mx-auto px-4 py-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Siri y widget de iPhone</h1>
-        <p className="mt-1 text-sm text-gray-400">
+        <p className="mt-1 text-sm text-ink-muted">
           Un atajo de la app <strong>Atajos</strong> para cargar gastos hablando, sin abrir la app: &quot;Oye Siri,
           anotar gasto&quot;, un widget o el botón de acción. Se arma una sola vez, en unos 3 minutos.
         </p>
@@ -125,18 +125,18 @@ export default function ShortcutsPage() {
         <h2 className="font-semibold">A. Generá tu URL personal</h2>
         {shortcutUrl ? (
           <>
-            <p className="text-sm text-amber-400">
+            <p className="text-sm text-alert-text">
               Copiala y guardala hasta terminar el atajo: no se vuelve a mostrar. Si la perdés, generá otra.
             </p>
             <Copyable value={shortcutUrl} label="URL del atajo" />
           </>
         ) : (
           <>
-            <p className="text-sm text-gray-400">Incluye una clave que es solo tuya. Si perdés el teléfono, revocala abajo.</p>
+            <p className="text-sm text-ink-muted">Incluye una clave que es solo tuya. Si perdés el teléfono, revocala abajo.</p>
             <button
               onClick={create}
               disabled={busy}
-              className="w-full rounded-md bg-[#3987e5] py-3 font-semibold text-white disabled:opacity-50"
+              className="w-full rounded-md bg-accent py-3 font-semibold text-accent-ink disabled:opacity-50"
             >
               {busy ? "Generando..." : "Generar URL"}
             </button>
@@ -148,7 +148,7 @@ export default function ShortcutsPage() {
       {shortcutUrl && (
         <section className={card}>
           <h2 className="font-semibold">B. Probala desde acá</h2>
-          <p className="text-sm text-gray-400">Hace lo mismo que el atajo, pero no guarda nada.</p>
+          <p className="text-sm text-ink-muted">Hace lo mismo que el atajo, pero no guarda nada.</p>
           <div className="flex gap-2">
             <input
               value={sample}
@@ -161,7 +161,7 @@ export default function ShortcutsPage() {
             </button>
           </div>
           {testResult && (
-            <p className={`text-sm ${testResult.ok ? "text-green-400" : "text-red-400"}`}>{testResult.text}</p>
+            <p className={`text-sm ${testResult.ok ? "text-accent-text" : "text-alert-text"}`}>{testResult.text}</p>
           )}
         </section>
       )}
@@ -169,7 +169,7 @@ export default function ShortcutsPage() {
       {/* Paso C: armar el atajo */}
       <section className={card}>
         <h2 className="font-semibold">C. Armá el atajo en el iPhone</h2>
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-ink-muted">
           Abrí la app <strong>Atajos</strong>, tocá <strong>+</strong> (arriba a la derecha) y agregá estas 3 acciones
           con el buscador de abajo (&quot;Buscar apps y acciones&quot;):
         </p>
@@ -203,11 +203,11 @@ export default function ShortcutsPage() {
             </p>
           </Action>
         </ol>
-        <p className="text-sm text-gray-300">
+        <p className="text-sm text-ink">
           Por último, tocá el nombre arriba de todo, ponele <strong>Anotar gasto</strong> y tocá <strong>OK</strong>.
           Probalo con el botón ▶ de abajo.
         </p>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-ink-muted">
           Si algo no coincide con lo que ves, los nombres pueden variar un poco según la versión de iOS.
         </p>
       </section>
@@ -227,32 +227,32 @@ export default function ShortcutsPage() {
             <strong>Botón de acción</strong> (si tu iPhone lo tiene): Ajustes → Botón de acción → Atajo.
           </li>
         </ul>
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-ink-muted">
           Si falta el monto o la categoría, o parece repetido, queda en Pendientes para completarlo en la app.
         </p>
       </section>
 
       <section>
         <h2 className="font-semibold mb-2">Tus claves</h2>
-        <ul className="bg-secundario border-card rounded-md divide-y divide-[#3c3c3c]">
+        <ul className="bg-secundario border-card rounded-md divide-y divide-line">
           {(tokens ?? []).map((t) => (
             <li key={t.id} className="flex items-center justify-between gap-3 p-3 text-sm">
               <span>
                 {t.label}
-                <span className="block text-xs text-gray-500">
+                <span className="block text-xs text-ink-muted">
                   Creada {when(t.createdAt)} · último uso {when(t.lastUsedAt)}
                 </span>
               </span>
-              <button onClick={() => revoke(t)} className="text-red-400">
+              <button onClick={() => revoke(t)} className="text-alert-text">
                 Revocar
               </button>
             </li>
           ))}
           {tokens !== null && tokens.length === 0 && (
-            <li className="p-3 text-sm text-gray-500">Todavía no generaste ninguna.</li>
+            <li className="p-3 text-sm text-ink-muted">Todavía no generaste ninguna.</li>
           )}
         </ul>
-        <p className="mt-2 text-xs text-gray-500">
+        <p className="mt-2 text-xs text-ink-muted">
           &quot;Último uso&quot; te sirve para saber si el atajo está llegando: si nunca cambia, el atajo no se está
           conectando.
         </p>

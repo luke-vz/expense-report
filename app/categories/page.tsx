@@ -97,9 +97,9 @@ export default function CategoriesPage() {
         </button>
       </form>
 
-      {error && <p className="text-red-500 mb-4">{error}</p>}
+      {error && <p className="text-alert-text mb-4">{error}</p>}
 
-      <ul className="bg-secundario border-card shadow rounded-md divide-y divide-gray-600">
+      <ul className="bg-secundario border-card shadow rounded-md divide-y divide-line">
         {categories.map((c) => (
           <li key={c.id} className="flex flex-wrap items-center gap-3 p-3">
             {editingId === c.id ? (
@@ -111,10 +111,10 @@ export default function CategoriesPage() {
                   className="bg-input flex-1 rounded-md p-1"
                   autoFocus
                 />
-                <button onClick={() => renameCategory(c.id)} className="text-blue-400 hover:underline">
+                <button onClick={() => renameCategory(c.id)} className="text-accent-text hover:underline">
                   Guardar
                 </button>
-                <button onClick={() => setEditingId(null)} className="text-gray-400 hover:underline">
+                <button onClick={() => setEditingId(null)} className="text-ink-muted hover:underline">
                   Cancelar
                 </button>
               </>
@@ -136,25 +136,25 @@ export default function CategoriesPage() {
                 <button
                   onClick={() => mergeCategory(c.id)}
                   disabled={!mergeTargetId}
-                  className="text-blue-400 hover:underline disabled:opacity-50 disabled:no-underline"
+                  className="text-accent-text hover:underline disabled:opacity-50 disabled:no-underline"
                 >
                   Unir
                 </button>
-                <button onClick={() => setMergingId(null)} className="text-gray-400 hover:underline">
+                <button onClick={() => setMergingId(null)} className="text-ink-muted hover:underline">
                   Cancelar
                 </button>
               </>
             ) : (
               <>
                 <span className="flex-1">{c.name}</span>
-                <span className="text-sm text-gray-500">{c.expenseCount} gastos</span>
+                <span className="text-sm text-ink-muted">{c.expenseCount} gastos</span>
                 <div className="flex gap-3 w-full justify-end sm:w-auto">
                   <button
                     onClick={() => {
                       setEditingId(c.id);
                       setEditingName(c.name);
                     }}
-                    className="text-blue-400 hover:underline"
+                    className="text-accent-text hover:underline"
                   >
                     Renombrar
                   </button>
@@ -164,13 +164,13 @@ export default function CategoriesPage() {
                         setMergingId(c.id);
                         setMergeTargetId("");
                       }}
-                      className="text-blue-400 hover:underline"
+                      className="text-accent-text hover:underline"
                     >
                       Unir con…
                     </button>
                   )}
                   {c.expenseCount === 0 && (
-                    <button onClick={() => deleteCategory(c.id)} className="text-red-400 hover:underline">
+                    <button onClick={() => deleteCategory(c.id)} className="text-alert-text hover:underline">
                       Eliminar
                     </button>
                   )}

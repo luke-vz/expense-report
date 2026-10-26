@@ -61,12 +61,12 @@ export default function PendingPage() {
     <div className="max-w-xl mx-auto px-4 py-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Pendientes</h1>
-        <p className="text-sm text-gray-400 mt-1">Sacale una foto al ticket ahora y completalo cuando tengas un rato.</p>
+        <p className="text-sm text-ink-muted mt-1">Sacale una foto al ticket ahora y completalo cuando tengas un rato.</p>
       </div>
 
       <CaptureButton
         onSaved={load}
-        className="flex items-center justify-center gap-2 w-full rounded-md bg-[#3987e5] py-4 text-lg font-semibold text-white"
+        className="flex items-center justify-center gap-2 w-full rounded-md bg-accent py-4 text-lg font-semibold text-accent-ink"
       >
         📷 Sacar foto
       </CaptureButton>
@@ -84,16 +84,16 @@ export default function PendingPage() {
               {describe(item).title && (
                 <span className="text-sm truncate">
                   {describe(item).title}
-                  {describe(item).category && <span className="text-gray-400"> · {describe(item).category}</span>}
+                  {describe(item).category && <span className="text-ink-muted"> · {describe(item).category}</span>}
                 </span>
               )}
-              {item.aiStatus === "reading" && <span className="text-xs text-[#9cc3f2]">Leyendo el ticket…</span>}
-              <span className="text-xs text-gray-500">{capturedAt(item.createdAt)}</span>
+              {item.aiStatus === "reading" && <span className="text-xs text-accent-text">Leyendo el ticket…</span>}
+              <span className="text-xs text-ink-muted">{capturedAt(item.createdAt)}</span>
               <div className="mt-auto flex gap-4 pt-1 text-sm">
-                <Link href={`/expenses/new?pending=${item.id}`} className="text-[#3987e5] font-semibold">
+                <Link href={`/expenses/new?pending=${item.id}`} className="text-accent-text font-semibold">
                   Completar
                 </Link>
-                <button onClick={() => discard(item)} className="text-red-400">
+                <button onClick={() => discard(item)} className="text-alert-text">
                   Descartar
                 </button>
               </div>
@@ -101,7 +101,7 @@ export default function PendingPage() {
           </li>
         ))}
         {pending !== null && pending.length === 0 && (
-          <li className="text-center text-gray-500 py-6">No hay pendientes 🎉</li>
+          <li className="text-center text-ink-muted py-6">No hay pendientes 🎉</li>
         )}
       </ul>
     </div>

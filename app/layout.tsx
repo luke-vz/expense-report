@@ -13,7 +13,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#040404",
+  // Status bar tone follows the theme tokens (--bg)
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#e6e9ee" },
+    { media: "(prefers-color-scheme: dark)", color: "#262a31" },
+  ],
   viewportFit: "cover", // lets the fixed bars use env(safe-area-inset-*) on notched phones
 };
 

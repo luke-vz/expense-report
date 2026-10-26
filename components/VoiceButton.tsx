@@ -117,11 +117,8 @@ export default function VoiceButton({ today, onResult, onError }: VoiceButtonPro
       onClick={onClick}
       disabled={state === "thinking"}
       aria-live="polite"
-      className={`flex w-full items-center justify-center gap-2 rounded-md py-3 font-semibold transition-colors ${
-        state === "listening"
-          ? "bg-red-500/20 border border-red-400 text-red-300"
-          : "bg-[#3987e5]/15 border border-[#3987e5] text-[#9cc3f2]"
-      } disabled:opacity-70`}
+      // Secondary button of the design system; while listening it stays pressed in
+      className={`btn btn-secondary w-full !text-accent-text ${state === "listening" ? "!shadow-pressed" : ""}`}
     >
       {state === "idle" && "🎤 Decí el gasto"}
       {state === "listening" && (
