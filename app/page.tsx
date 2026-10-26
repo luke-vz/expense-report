@@ -51,16 +51,16 @@ export default function HomePage() {
   return (
     <div className="max-w-xl mx-auto px-4 py-6 space-y-6">
       <section className="bg-secundario border-card rounded-md p-5">
-        <h2 className="text-sm text-gray-400">Total de {monthName}</h2>
+        <h2 className="text-sm text-ink-muted">Total de {monthName}</h2>
         <p className="mt-1 text-4xl font-bold">{formatAmount(monthlyTotals.ARS ?? 0)}</p>
         {monthlyTotals.USD !== undefined && (
-          <p className="text-2xl font-bold text-gray-300">{formatAmount(monthlyTotals.USD, "USD")}</p>
+          <p className="text-2xl font-bold text-ink">{formatAmount(monthlyTotals.USD, "USD")}</p>
         )}
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-ink-muted">
           {expenses === null ? "Cargando..." : `${monthExpenses.length} gastos`}
         </p>
         {committed.length > 0 && (
-          <p className="mt-3 border-t border-[#3c3c3c] pt-3 text-sm text-gray-400">
+          <p className="mt-3 border-t border-line pt-3 text-sm text-ink-muted">
             Cuotas a futuro:{" "}
             {Object.entries(committedTotals)
               .map(([currency, total]) => formatAmount(total, currency))
@@ -72,19 +72,19 @@ export default function HomePage() {
       {pendingCount > 0 && (
         <Link
           href="/pending"
-          className="flex items-center justify-between rounded-md border border-[#3987e5] bg-[#3987e5]/10 px-4 py-3"
+          className="flex items-center justify-between rounded-md border border-accent bg-accent/20 px-4 py-3"
         >
           <span>
             Tenés <strong>{pendingCount}</strong> {pendingCount === 1 ? "gasto" : "gastos"} para completar
           </span>
-          <span className="text-[#3987e5] font-semibold">Ver →</span>
+          <span className="text-accent-text font-semibold">Ver →</span>
         </Link>
       )}
 
       <div className="flex gap-3">
         <Link
           href="/expenses/new"
-          className="flex flex-1 items-center justify-center gap-2 rounded-md bg-[#3987e5] py-4 text-lg font-semibold text-white"
+          className="flex flex-1 items-center justify-center gap-2 rounded-md bg-accent py-4 text-lg font-semibold text-accent-ink"
         >
           <span className="text-2xl leading-none">+</span> Cargar gasto
         </Link>
@@ -96,17 +96,17 @@ export default function HomePage() {
       <section>
         <div className="flex items-baseline justify-between mb-2">
           <h2 className="font-semibold">Últimos gastos</h2>
-          <Link href="/expenses" className="text-sm text-[#3987e5]">
+          <Link href="/expenses" className="text-sm text-accent-text">
             Ver todos
           </Link>
         </div>
-        <ul className="bg-secundario border-card rounded-md divide-y divide-[#3c3c3c]">
+        <ul className="bg-secundario border-card rounded-md divide-y divide-line">
           {latest.map((exp) => (
             <li key={exp.id}>
               <Link href={`/expenses/${exp.id}/edit`} className="flex items-center justify-between gap-3 p-3">
                 <span className="min-w-0">
                   <span className="block truncate">{expenseTitle(exp)}</span>
-                  <span className="block text-xs text-gray-500">
+                  <span className="block text-xs text-ink-muted">
                     {exp.category.name} · {formatDate(exp.date)}
                   </span>
                 </span>
@@ -115,17 +115,17 @@ export default function HomePage() {
             </li>
           ))}
           {expenses !== null && latest.length === 0 && (
-            <li className="p-3 text-center text-gray-500">Todavía no hay gastos</li>
+            <li className="p-3 text-center text-ink-muted">Todavía no hay gastos</li>
           )}
         </ul>
       </section>
 
-      <Link href="/shortcuts" className="block text-center text-sm text-[#3987e5]">
+      <Link href="/shortcuts" className="block text-center text-sm text-accent-text">
         📱 Cargar gastos con Siri o un widget
       </Link>
 
       {/* On the phone there is no header: the session lives here */}
-      <p className="text-center text-xs text-gray-500">
+      <p className="text-center text-xs text-ink-muted">
         {userName && <>Conectado como {userName} · </>}
         <button onClick={() => signOut({ callbackUrl: "/login" })} className="underline">
           Salir

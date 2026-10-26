@@ -135,13 +135,13 @@ function NewExpense() {
   };
 
   if (pendingId) {
-    if (loadError) return <p className="p-6 text-red-500">{loadError}</p>;
+    if (loadError) return <p className="p-6 text-alert-text">{loadError}</p>;
     if (!pending) return <p className="p-6">Cargando...</p>;
     if (pending.aiStatus === "reading" && !skipReading) {
       return (
         <div className="p-6 text-center space-y-4">
-          <p className="text-[#9cc3f2]">Leyendo el ticket…</p>
-          <button onClick={() => setSkipReading(true)} className="text-sm text-gray-400 underline">
+          <p className="text-accent-text">Leyendo el ticket…</p>
+          <button onClick={() => setSkipReading(true)} className="btn btn-text">
             Completar a mano
           </button>
         </div>
@@ -190,12 +190,12 @@ function NewExpense() {
       {lastSaved && (
         <div
           role="status"
-          className="fixed inset-x-4 bottom-[calc(9.5rem+env(safe-area-inset-bottom))] z-50 mx-auto max-w-md flex items-center justify-between gap-3 rounded-md bg-[#2b2b2b] border-card px-4 py-3 shadow-lg md:bottom-8"
+          className="fixed inset-x-4 bottom-[calc(160px+env(safe-area-inset-bottom))] z-50 mx-auto max-w-md flex items-center justify-between gap-3 rounded-card bg-surface px-4 py-2 shadow-raised md:bottom-8"
         >
           <span className="text-sm truncate">
             {lastSaved.kind === "pending" ? "Guardado en pendientes" : `Guardado: ${lastSaved.label}`}
           </span>
-          <button onClick={undo} className="text-[#3987e5] font-semibold text-sm shrink-0">
+          <button onClick={undo} className="btn btn-text shrink-0">
             Deshacer
           </button>
         </div>

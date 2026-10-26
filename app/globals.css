@@ -1,45 +1,311 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Design system — tokens (light by default, dark from the OS)
+   ============================================================ */
+
 :root {
-  --background: #121212;
-  --foreground: #d1d5db;
+  color-scheme: light;
+
+  --bg: #e6e9ee;
+  --surface: #eceff3;
+  --ink: #2e3b37;
+  --ink-muted: #55645e;
+  --placeholder: #7a8291;
+  --accent: #a7f3d0;
+  --accent-ink: #064e3b;
+  --accent-text: #065f46;
+  --focus: #047857;
+  --alert: #fbc4bd;
+  --alert-text: #9a3a2c;
+  --shadow-light: #ffffff;
+  --shadow-dark: #c3c9d4;
+
+  /* Elevation */
+  --raised: 3px 3px 6px var(--shadow-dark), -3px -3px 6px var(--shadow-light);
+  --well: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light);
+  --pressed: inset 2px 2px 4px var(--shadow-dark), inset -2px -2px 4px var(--shadow-light);
+  /* Sunken cards that group lists are a bit shallower than --well */
+  --well-list: inset 2px 2px 4px var(--shadow-dark), inset -2px -2px 4px var(--shadow-light);
+
+  /* Radii */
+  --radius-pill: 36px;
+  --radius-panel: 28px;
+  --radius-card: 20px;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --bg: #262a31;
+    --surface: #2e323a;
+    --ink: #eef0f4;
+    --ink-muted: #b5bcc8;
+    --placeholder: #6f7785;
+    --accent: #a7f3d0;
+    --accent-ink: #0b2e23;
+    --accent-text: #a7f3d0;
+    --focus: #a7f3d0;
+    --alert: #f4a59b;
+    --alert-text: #f4a59b;
+    --shadow-light: #343a44;
+    --shadow-dark: #1b1e24;
+  }
+}
+
+/* Tokens as Tailwind utilities: bg-surface, text-ink, text-accent-text, shadow-raised… */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-placeholder: var(--placeholder);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-text: var(--accent-text);
+  --color-focus: var(--focus);
+  --color-alert: var(--alert);
+  --color-alert-text: var(--alert-text);
+  /* Hairlines (dividers, chart tracks): the dark shadow tone works on both themes */
+  --color-line: var(--shadow-dark);
+
+  --shadow-raised: var(--raised);
+  --shadow-well: var(--well);
+  --shadow-pressed: var(--pressed);
+  --shadow-well-list: var(--well-list);
+
+  --radius-pill: var(--radius-pill);
+  --radius-panel: var(--radius-panel);
+  --radius-card: var(--radius-card);
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
+/* ============================================================
+   Base
+   ============================================================ */
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 500;
 }
 
+/* Focus ring for keyboard/switch users on every interactive element */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+::placeholder {
+  /* --placeholder is 3.2:1, below the 4.5:1 minimum for small text: small placeholders use
+     --ink-muted (5.1:1). The big amount "0" overrides this (large text, 3:1 is enough). */
+  color: var(--ink-muted);
+  opacity: 1;
+}
+
+/* ============================================================
+   Typography
+   ============================================================ */
+
+.text-display {
+  font-size: 72px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.text-title {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.text-label {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+}
+
+/* ============================================================
+   Components
+   ============================================================ */
+
+/* Informative card: a raised tone, no shadow */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  padding: 22px 24px;
+}
+
+/* Sunken card that groups a list */
+.card-well {
+  background: var(--bg);
+  border-radius: var(--radius-card);
+  box-shadow: var(--well-list);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  transition: box-shadow 120ms ease, transform 120ms ease;
+}
+.btn:active:not(:disabled) {
+  box-shadow: var(--pressed);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--raised);
+}
+
+.btn-secondary {
+  background: var(--bg);
+  color: var(--ink);
+  box-shadow: var(--raised);
+}
+
+.btn-destructive {
+  background: var(--bg);
+  color: var(--alert-text);
+  box-shadow: var(--raised);
+}
+
+.btn-text {
+  background: transparent;
+  color: var(--accent-text);
+  box-shadow: none;
+  padding: 0 8px;
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-destructive:disabled {
+  background: var(--bg);
+  color: var(--placeholder);
+  box-shadow: var(--pressed);
+  cursor: not-allowed;
+}
+
+/* While saving the primary button keeps its look (it's disabled only to avoid double taps) */
+.btn-primary[aria-busy="true"]:disabled {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--raised);
+  cursor: progress;
+}
+
+/* "Guardando…": spinner drawn with the button's ink */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-ink);
+  border-right-color: transparent;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+/* Chips (categories, Hoy/Ayer, cuotas): raised; selected = pressed + accent text */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: var(--radius-pill);
+  background: var(--bg);
+  color: var(--ink);
+  box-shadow: var(--raised);
+  font-size: 15px;
+  font-weight: 500;
+}
+.chip[aria-pressed="true"],
+.chip-on {
+  box-shadow: var(--pressed);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+/* Text fields */
+.field {
+  background: var(--bg);
+  color: var(--ink);
+  border-radius: var(--radius-card);
+  box-shadow: var(--well);
+  min-height: 44px;
+  padding: 12px 16px;
+}
+
+/* Amount panel: sunken, with the alert ring when over a limit */
+.amount-panel {
+  background: var(--bg);
+  border-radius: var(--radius-panel);
+  padding: 24px;
+  box-shadow: var(--well);
+}
+/* The 72px input has no box of its own: the panel shows the focus ring instead */
+.amount-panel input:focus-visible {
+  outline: none;
+}
+.amount-panel:focus-within {
+  box-shadow: var(--well), 0 0 0 2px var(--focus);
+}
+.amount-panel[data-alert="true"] {
+  box-shadow: var(--well), 0 0 0 2px var(--alert);
+}
+.amount-panel input::placeholder {
+  /* Large text: --placeholder meets the 3:1 minimum for 72px */
+  color: var(--placeholder);
+}
+
+/* ============================================================
+   Legacy classes, mapped to the tokens so every screen follows
+   the theme. New code should use the components above.
+   ============================================================ */
+
 .header-bg {
-  background: #040404;
+  background: var(--surface);
 }
 
 .bg-secundario {
-  background: #2b2b2b;
+  background: var(--surface);
 }
+
 .bg-input {
-  background: #3c3c3c;
+  background: var(--bg);
+  box-shadow: var(--well);
 }
 
 .border-card {
-  border: 1px solid #616161;
+  border: 0;
 }
 
 .bg-boton {
-  background: #121212;
-  border: 1px solid #616161;
+  background: var(--bg);
+  color: var(--ink);
+  box-shadow: var(--raised);
 }
-
-.bg-boton:hover {
-    border: 1px solid #2b2b2b;
-    background: #2b2b2b;
+.bg-boton:active {
+  box-shadow: var(--pressed);
 }

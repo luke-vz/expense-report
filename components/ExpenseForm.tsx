@@ -65,6 +65,11 @@ interface ExpenseFormProps {
   onSaveAsPending?: (draft: PendingDraft) => Promise<string | void>;
   /** Receipt photo shown above the amount (completing a pending expense, or editing one). */
   photoUrl?: string | null;
+  /**
+   * "Supera límite" state of the design system: alert ring on the amount and this message.
+   * There is no limit rule in the app yet; whoever adds one decides when to pass it.
+   */
+  overLimitMessage?: string;
   /** Returns an error message to show, or nothing on success. */
   onSubmit: (expense: ExpenseSubmit, another: boolean) => Promise<string | void>;
 }
@@ -86,6 +91,7 @@ export default function ExpenseForm({
   onDelete,
   onSaveAsPending,
   photoUrl,
+  overLimitMessage,
   onSubmit,
 }: ExpenseFormProps) {
   const { categories } = useCategories();
@@ -279,10 +285,8 @@ export default function ExpenseForm({
         )}`
       : null;
 
-  const chip = (selected: boolean) =>
-    `px-4 py-2 rounded-full border text-sm transition-colors ${
-      selected ? "bg-[#3987e5] border-[#3987e5] text-white" : "border-[#616161] text-gray-300 active:bg-neutral-800"
-    }`;
+  // Design system chip: raised; selected = pressed + accent text (the state is in aria-pressed)
+  const chip = (selected: boolean) => `chip ${selected ? "chip-on" : "active:shadow-pressed"}`;
 
   return (
     <form
@@ -290,20 +294,25 @@ export default function ExpenseForm({
         e.preventDefault();
         submit(false);
       }}
-      className="max-w-xl mx-auto px-4 pt-4 pb-16 md:pb-8"
+      className="max-w-xl mx-auto px-4 pt-4 pb-24 md:pb-8"
     >
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold">{heading}</h1>
-        <Link href="/expenses" aria-label="Cerrar" className="text-2xl leading-none px-2 text-gray-400">
+        <h1 className="text-title">{heading}</h1>
+        <Link href="/expenses" aria-label="Cerrar" className="flex h-11 w-11 items-center justify-center rounded-full text-xl text-ink-muted">
           ✕
         </Link>
       </div>
 
-      {error && <p className="text-red-500 mb-4">{error}</p>}
+      {error && (
+        <p role="alert" className="mb-4 flex items-start gap-2 text-alert-text">
+          <span aria-hidden>⚠</span>
+          {error}
+        </p>
+      )}
 
       {photoUrl && (
         <div className="mb-6 flex justify-center">
-          <PhotoViewer src={photoUrl} alt="Foto del gasto" className="max-h-64 rounded-md object-contain" />
+          <PhotoViewer src={photoUrl} alt="Foto del gasto" className="max-h-64 rounded-card object-contain" />
         </div>
       )}
 
@@ -311,15 +320,15 @@ export default function ExpenseForm({
         <div className="mb-6">
           {photoPreview ? (
             <div className="flex items-center gap-4">
-              <PhotoViewer src={photoPreview} alt="Foto del ticket" className="h-24 w-24 rounded-md object-cover" />
+              <PhotoViewer src={photoPreview} alt="Foto del ticket" className="h-24 w-24 rounded-card object-cover" />
               <div className="flex flex-col items-start gap-2 text-sm">
-                {readingPhoto && <span className="text-[#9cc3f2]">Leyendo el ticket…</span>}
+                {readingPhoto && <span className="text-accent-text">Leyendo el ticket…</span>}
                 {onSaveAsPending && (
                   <button
                     type="button"
                     onClick={saveAsPending}
                     disabled={saving}
-                    className="text-[#3987e5] font-semibold disabled:opacity-50"
+                    className="btn btn-text !px-0 !min-h-11 disabled:opacity-50"
                   >
                     ¿Sin tiempo? Guardar como pendiente →
                   </button>
@@ -330,7 +339,7 @@ export default function ExpenseForm({
                     setPhoto(null);
                     setVoiceFeedback(null);
                   }}
-                  className="text-gray-400"
+                  className="btn btn-text !px-0 !min-h-11 !text-ink-muted"
                 >
                   Quitar foto
                 </button>
@@ -339,8 +348,8 @@ export default function ExpenseForm({
           ) : (
             // No `capture` attribute: phones offer camera *or* gallery (screenshots too)
             <label
-              className={`flex items-center justify-center gap-2 rounded-md border border-dashed border-[#616161] py-3 text-gray-300 ${
-                processingPhoto ? "opacity-50 pointer-events-none" : "cursor-pointer active:bg-neutral-800"
+              className={`btn btn-secondary w-full ${
+                processingPhoto ? "opacity-50 pointer-events-none" : "cursor-pointer"
               }`}
             >
               <input type="file" accept="image/*" className="sr-only" onChange={onPhotoFile} />
@@ -362,48 +371,65 @@ export default function ExpenseForm({
 
       {/* What the AI understood, from the voice or from the ticket photo */}
       {voiceFeedback && (
-        <p className={`-mt-4 mb-6 text-sm ${voiceFeedback.complete ? "text-green-400" : "text-amber-400"}`}>
+        <p className={`-mt-4 mb-6 text-sm ${voiceFeedback.complete ? "text-accent-text" : "text-alert-text"}`}>
           {voiceFeedback.text}
         </p>
       )}
 
-      <label className="block text-center">
-        <span className="sr-only">Monto</span>
-        <span className="flex items-baseline justify-center gap-1">
-          <span className="text-3xl text-gray-500">{form.currency === "USD" ? "US$" : "$"}</span>
-          <input
-            type="text"
-            inputMode="decimal"
-            autoComplete="off"
-            placeholder="0"
-            value={form.amount}
-            onChange={(e) => set("amount", e.target.value)}
-            autoFocus={autoFocusAmount}
-            ref={amountRef}
-            // Grows with the typed amount so the "$" stays next to the number
-            style={{ width: `${Math.max(form.amount.length, 1) + 0.5}ch` }}
-            className="max-w-full bg-transparent text-5xl font-bold outline-none placeholder:text-gray-600"
-          />
-        </span>
-      </label>
+      {/* Amount panel: sunken well; alert ring + message when over a limit (overLimitMessage) */}
+      <div className="amount-panel" data-alert={overLimitMessage ? "true" : undefined}>
+        <label className="block text-center">
+          <span className="sr-only">Monto</span>
+          <span className="flex items-baseline justify-center gap-1">
+            <span className={`text-3xl font-bold ${overLimitMessage ? "text-alert-text" : "text-ink-muted"}`}>
+              {form.currency === "USD" ? "US$" : "$"}
+            </span>
+            <input
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
+              placeholder="0"
+              value={form.amount}
+              onChange={(e) => set("amount", e.target.value)}
+              autoFocus={autoFocusAmount}
+              ref={amountRef}
+              aria-invalid={overLimitMessage ? true : undefined}
+              aria-describedby={overLimitMessage ? "amount-alert" : undefined}
+              // Grows with the typed amount so the "$" stays next to the number, and shrinks
+              // the 72px display size for long amounts so they still fit a 390px screen
+              style={{
+                width: `${Math.max(form.amount.length, 1) + 0.5}ch`,
+                fontSize: form.amount.length > 9 ? 44 : form.amount.length > 6 ? 56 : undefined,
+              }}
+              className="text-display max-w-full bg-transparent text-ink outline-none"
+            />
+          </span>
+        </label>
 
-      <div className="mt-3 flex justify-center gap-2" role="group" aria-label="Moneda">
-        {["ARS", "USD"].map((currency) => (
-          <button
-            key={currency}
-            type="button"
-            onClick={() => set("currency", currency)}
-            aria-pressed={form.currency === currency}
-            className={`${chip(form.currency === currency)} !py-1`}
-          >
-            {currency}
-          </button>
-        ))}
+        <div className="mt-4 flex justify-center gap-2" role="group" aria-label="Moneda">
+          {["ARS", "USD"].map((currency) => (
+            <button
+              key={currency}
+              type="button"
+              onClick={() => set("currency", currency)}
+              aria-pressed={form.currency === currency}
+              className={chip(form.currency === currency)}
+            >
+              {currency}
+            </button>
+          ))}
+        </div>
       </div>
+      {overLimitMessage && (
+        <p id="amount-alert" role="alert" className="mt-3 flex items-center justify-center gap-2 text-alert-text">
+          <span aria-hidden>⚠</span>
+          {overLimitMessage}
+        </p>
+      )}
 
       {showShortcuts && shortcuts.length > 0 && (
         <fieldset className="mt-8">
-          <legend className="text-sm text-gray-400 mb-2">Frecuentes</legend>
+          <legend className="text-label mb-3">Frecuentes</legend>
           <div className="flex flex-wrap gap-2">
             {shortcuts.map((s) => (
               <button
@@ -423,7 +449,7 @@ export default function ExpenseForm({
       )}
 
       <fieldset className="mt-8">
-        <legend className="text-sm text-gray-400 mb-2">Categoría</legend>
+        <legend className="text-label mb-3">Categoría</legend>
         <div className="flex flex-wrap gap-2">
           {sortedCategories.map((c) => (
             <button
@@ -440,7 +466,7 @@ export default function ExpenseForm({
       </fieldset>
 
       <label className="block mt-6">
-        <span className="text-sm text-gray-400">Detalle (opcional)</span>
+        <span className="text-label">Detalle (opcional)</span>
         <input
           type="text"
           value={form.title}
@@ -450,7 +476,7 @@ export default function ExpenseForm({
           onBlur={() => setTimeout(() => setTitleFocused(false), 150)}
           autoComplete="off"
           placeholder="Ej: súper, nafta, farmacia"
-          className="bg-input mt-1 block w-full rounded-md p-3"
+          className="field mt-2 block w-full"
         />
       </label>
       {matches.length > 0 && (
@@ -464,14 +490,14 @@ export default function ExpenseForm({
               className={chip(false)}
             >
               {s.title}
-              <span className="ml-1 text-gray-500">· {categories.find((c) => c.id === s.categoryId)?.name}</span>
+              <span className="ml-1 text-ink-muted">· {categories.find((c) => c.id === s.categoryId)?.name}</span>
             </button>
           ))}
         </div>
       )}
 
       <fieldset className="mt-6">
-        <legend className="text-sm text-gray-400 mb-2">Fecha</legend>
+        <legend className="text-label mb-3">Fecha</legend>
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={() => set("date", today)} className={chip(form.date === today)}>
             Hoy
@@ -484,8 +510,8 @@ export default function ExpenseForm({
             aria-label="Otra fecha"
             value={form.date}
             onChange={(e) => set("date", e.target.value)}
-            className={`bg-input rounded-full px-4 py-2 text-sm ${
-              form.date !== today && form.date !== yesterday ? "ring-2 ring-[#3987e5]" : ""
+            className={`field !rounded-pill !py-0 ${
+              form.date !== today && form.date !== yesterday ? "text-accent-text font-semibold" : ""
             }`}
           />
         </div>
@@ -493,7 +519,7 @@ export default function ExpenseForm({
 
       {allowInstallments && (
         <fieldset className="mt-6">
-          <legend className="text-sm text-gray-400 mb-2">Cuotas</legend>
+          <legend className="text-label mb-3">Cuotas</legend>
           <div className="flex flex-wrap items-center gap-2">
             {[1, 3, 6, 12].map((n) => (
               <button key={n} type="button" onClick={() => setInstallments(n)} className={chip(installments === n)}>
@@ -512,13 +538,13 @@ export default function ExpenseForm({
                 setInstallments(e.target.value ? Number(e.target.value) : 1);
                 setError("");
               }}
-              className={`bg-input w-20 rounded-full px-4 py-2 text-sm ${
-                ![1, 3, 6, 12].includes(installments) ? "ring-2 ring-[#3987e5]" : ""
+              className={`field w-24 !rounded-pill !py-0 ${
+                ![1, 3, 6, 12].includes(installments) ? "text-accent-text font-semibold" : ""
               }`}
             />
           </div>
           {installments > 1 && (
-            <p className="mt-2 text-sm text-gray-400">
+            <p className="mt-2 text-sm text-ink-muted">
               {installmentPreview ?? "Ingresá el monto total de la compra (con interés incluido)."}
             </p>
           )}
@@ -526,18 +552,21 @@ export default function ExpenseForm({
       )}
 
       {onDelete && (
-        <button type="button" onClick={onDelete} disabled={saving} className="mt-10 w-full py-3 text-red-400">
+        <button type="button" onClick={onDelete} disabled={saving} className="btn btn-destructive mt-10 w-full">
           Eliminar gasto
         </button>
       )}
 
-      {/* Pinned right above the mobile tab bar (3.75rem tall plus the iPhone safe area) */}
-      <div className="fixed bottom-[calc(3.75rem+env(safe-area-inset-bottom))] inset-x-0 z-40 flex gap-3 p-3 bg-[#121212] border-t border-[#2b2b2b] md:static md:mt-8 md:p-0 md:border-0 md:bg-transparent">
+      {/* Pinned right above the floating tab bar (72px + 16px gap + the iPhone safe area); the
+          background runs to the bottom edge so the form doesn't show around the floating bar */}
+      <div className="fixed bottom-0 inset-x-0 z-30 flex gap-3 bg-bg px-4 pt-3 pb-[calc(100px+env(safe-area-inset-bottom))] md:static md:mt-8 md:p-0 md:bg-transparent">
         <button
           type="submit"
           disabled={saving}
-          className="flex-1 bg-[#3987e5] text-white font-semibold py-3 rounded-md disabled:opacity-50"
+          aria-busy={saving}
+          className="btn btn-primary flex-1"
         >
+          {saving && <span className="spinner" aria-hidden />}
           {saving ? "Guardando..." : submitLabel}
         </button>
         {allowAnother && (
@@ -545,7 +574,7 @@ export default function ExpenseForm({
             type="button"
             disabled={saving}
             onClick={() => submit(true)}
-            className="flex-1 bg-boton py-3 rounded-md disabled:opacity-50"
+            className="btn btn-secondary flex-1"
           >
             Guardar y otro
           </button>

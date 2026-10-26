@@ -15,13 +15,13 @@ function LoginContent() {
   return (
     <div className="max-w-sm mx-auto px-4 py-16 text-center">
       <h1 className="text-2xl font-bold">Expense Report</h1>
-      <p className="mt-2 text-gray-400">Ingresá para ver y cargar los gastos.</p>
+      <p className="mt-2 text-ink-muted">Ingresá para ver y cargar los gastos.</p>
 
       {error === "AccessDenied" && (
-        <p className="mt-6 text-red-500">Esa cuenta de Google no tiene acceso.</p>
+        <p className="mt-6 text-alert-text">Esa cuenta de Google no tiene acceso.</p>
       )}
       {error && error !== "AccessDenied" && (
-        <p className="mt-6 text-red-500">No se pudo iniciar sesión. Probá de nuevo.</p>
+        <p className="mt-6 text-alert-text">No se pudo iniciar sesión. Probá de nuevo.</p>
       )}
 
       <button

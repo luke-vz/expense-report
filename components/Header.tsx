@@ -35,7 +35,7 @@ export default function Header() {
                 className={`px-3 py-2 rounded-md transition-colors duration-300 ${
                   pathname === link.href
                     ? "bg-boton"
-                    : "text-gray-300 hover:bg-neutral-800 hover:text-white"
+                    : "text-ink hover:bg-bg hover:text-ink"
                 }`}
               >
                 {link.label}
@@ -45,7 +45,7 @@ export default function Header() {
           {pathname !== "/login" && (
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}
-              className="text-sm text-gray-400 hover:text-white"
+              className="text-sm text-ink-muted hover:text-ink"
             >
               Salir
             </button>

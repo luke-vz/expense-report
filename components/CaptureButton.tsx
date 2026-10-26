@@ -91,8 +91,8 @@ export default function CaptureButton({ className, children, onSaved }: CaptureB
             {/* eslint-disable-next-line @next/next/no-img-element -- local object URL */}
             <img src={preview} alt="Foto del gasto" className="max-h-full max-w-full rounded-md object-contain" />
           </div>
-          <div className="bg-[#121212] border-t border-[#2b2b2b] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] space-y-3">
-            {error && <p className="text-red-500 text-sm">{error}</p>}
+          <div className="bg-bg border-t border-line p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] space-y-3">
+            {error && <p className="text-alert-text text-sm">{error}</p>}
             <div className="flex gap-3">
               <input
                 type="text"
@@ -121,7 +121,7 @@ export default function CaptureButton({ className, children, onSaved }: CaptureB
                 type="button"
                 onClick={save}
                 disabled={busy}
-                className="flex-1 bg-[#3987e5] text-white font-semibold py-3 rounded-md disabled:opacity-50"
+                className="flex-1 bg-accent text-accent-ink font-semibold py-3 rounded-md disabled:opacity-50"
               >
                 {busy ? "Guardando..." : "Guardar pendiente"}
               </button>
