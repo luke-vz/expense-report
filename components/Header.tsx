@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 
 const links = [
-  { href: "/", label: "Home" },
+  { href: "/home", label: "Home" },
   { href: "/expenses", label: "Gastos" },
   { href: "/expenses/new", label: "Nuevo Gasto" },
   { href: "/pending", label: "Pendientes" },
@@ -23,7 +23,7 @@ export default function Header() {
     // bottom of the home page, so the screen isn't spent on a bar with a single button
     <header className="header-bg shadow-md sticky top-0 z-50 hidden md:block">
       <div className="max-w-6xl mx-auto flex justify-between items-center px-4 py-3 md:p-4">
-        <Link href="/" className="text-lg md:text-xl font-bold">
+        <Link href="/home" className="text-lg md:text-xl font-bold">
           Expense Report
         </Link>
         <div className="flex items-center gap-4">

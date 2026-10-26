@@ -8,7 +8,7 @@
 const VERSION = "v1";
 const PAGES = `pages-${VERSION}`;
 const ASSETS = `assets-${VERSION}`;
-const FALLBACK = "/quick";
+const FALLBACK = "/";
 
 self.addEventListener("install", () => self.skipWaiting());
 
