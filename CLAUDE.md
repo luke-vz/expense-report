@@ -8,21 +8,26 @@ App para registrar los gastos del hogar de una pareja con **caja común** (gasto
 
 Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL, Tailwind CSS v4, Recharts, next-auth v4 (Google), Vercel Blob. UI en castellano rioplatense.
 
-## Estado actual (2026-10-06)
+## Estado actual (2026-10-07)
 
-**En producción:** carga rápida de gastos (cuotas, ARS/USD, foto del ticket **leída con IA**, **por voz con IA**), "pre-gastos" (foto ahora, completar después, también leída con IA), login con Google restringido a dos mails, app instalable, dashboard por mes y gestión de categorías. El último PR mergeado es el último de la tabla de Historial; verificar con `gh pr list` si hay alguno abierto.
+**En producción:** carga rápida de gastos (cuotas, ARS/USD, foto del ticket **leída con IA**, **por voz con IA**), "pre-gastos" (foto ahora, completar después, también leída con IA), **atajo de Siri/widget de iPhone** para cargar por voz sin abrir la app, login con Google restringido a dos mails, app instalable (barra inferior en todas las pantallas, sin encabezado en el celular), dashboard por mes y gestión de categorías. El último PR mergeado es el último de la tabla de Historial; verificar con `gh pr list` si hay alguno abierto.
 
 **A confirmar con el usuario:**
 - La lectura de tickets (PR #20) se probó con imágenes generadas. Falta que la pruebe con tickets reales (arrugados, con poca luz, capturas de su banco).
-- El atajo de Siri/widget: la primera guía (PR #22) no le resultó clara al usuario y el atajo falló **en el teléfono, sin llegar nunca al servidor** (los logs de Vercel no tenían ningún pedido a `/api/shortcuts/voice`). El PR #24 simplifica el armado (la clave va en la URL, sin encabezados), agrega "Probar" y reescribe los pasos. Falta que el usuario lo vuelva a intentar y confirme.
+- **El atajo de Siri/widget todavía no funciona en el iPhone del usuario.**
+  - Con la primera guía (PR #22) el atajo falló **en el teléfono, sin llegar nunca al servidor**: los logs de Vercel no tenían ningún pedido a `/api/shortcuts/voice`.
+  - El PR #24 (en producción desde el 2026-10-06) simplifica el armado: la clave va en la URL, sin encabezados. También agrega "Probar" y reescribe los pasos.
+  - Al 2026-10-07 seguía sin haber pedidos al endpoint: falta que el usuario lo vuelva a intentar (antes, revocar la clave vieja y generar la URL nueva).
+  - Si vuelve a fallar, pedirle el mensaje exacto o una captura y en qué paso, y revisar los logs (ver Comandos).
 
 **La base de producción TIENE DATOS REALES** (cientos de gastos desde 2025) y no se puede resetear. Claude no tiene acceso a sus credenciales: cualquier operación directa sobre esa base la hace el usuario. Las migraciones las aplica el build de producción (ver Decisiones).
 
 **Foco y decisiones del usuario — respetarlas:**
 - El foco actual es **pulir la carga de gastos**.
 - **Ahorro y presupuestos (ingresos, tasa de ahorro, topes por categoría, metas) están en pausa** por decisión del usuario: no proponerlos hasta que los pida.
-- **IA:** en uso para el **gasto por voz** (PR #18 en la app, PR #22 desde Siri/widget) y la **lectura de tickets** (PR #20).
-- **Widget de iPhone = atajo de la app Atajos**, no una app nativa: un widget nativo exigiría Swift, una Mac con Xcode (el usuario usa Linux) y la cuenta de Apple Developer (US$ 99/año). El usuario lo quiere **solo para voz**. Reglas para cualquier uso de IA: modelo más barato (Claude Haiku 4.5), `ANTHROPIC_API_KEY` cargada por el usuario directo en Vercel (nunca pegada en el chat) y con límite de gasto mensual.
+- **IA:** en uso para el **gasto por voz** (PR #18 en la app, PR #22/#24 desde Siri/widget) y la **lectura de tickets** (PR #20). Reglas para cualquier uso de IA: modelo más barato (Claude Haiku 4.5), `ANTHROPIC_API_KEY` cargada por el usuario directo en Vercel (nunca pegada en el chat) y con límite de gasto mensual.
+- **Widget de iPhone = atajo de la app Atajos**, no una app nativa: un widget nativo exigiría Swift, una Mac con Xcode (el usuario usa Linux) y la cuenta de Apple Developer (US$ 99/año). El usuario lo quiere **solo para voz**.
+- **Navegación en el celular:** barra inferior en todas las pantallas (también en el formulario) y sin encabezado; "Salir" está al pie de la home (pedidos del usuario, PR #23).
 - **La carga no puede sumar pasos.** La vara es: atajo de Frecuentes + monto + Guardar (~3 toques). El dictado por teclado (PR #16) se revirtió (PR #17) porque el usuario lo encontró complejo: campo extra + micrófono del teclado + "Completar" + revisar sumaban pasos.
 - No arrancar ítems del backlog sin que el usuario elija.
 - Formato de montos `$1,500.00`: decidido, no proponer `$1.500,00`. Solo login con Google (Apple requiere cuenta paga de developer). Monedas separadas, sin cotización.
@@ -111,7 +116,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
     - si no es un comprobante, devuelve nulls.
   - Costo aproximado: una fracción de centavo de dólar por frase y ~0,3 centavos por foto.
 - **Páginas** — todas client components (`"use client"`) que hacen `fetch` en `useEffect` y filtran/agregan en el cliente:
-  - `/` — total del mes por moneda, "Cuotas a futuro", cartel de pendientes, "Cargar gasto" + 📷 y últimos 5 gastos (sin cuotas futuras).
+  - `/` — total del mes por moneda, "Cuotas a futuro", cartel de pendientes, "Cargar gasto" + 📷, últimos 5 gastos (sin cuotas futuras) y al pie el link a `/shortcuts` y "Conectado como … · Salir" (el nombre sale de `/api/auth/session`).
   - `/expenses` — tarjetas agrupadas por día con el total del día por moneda; filtros de categoría y mes; muestra quién lo cargó y 📎 si tiene foto. Tocar un gasto lo edita.
   - `/expenses/new` y `/expenses/[id]/edit` — ver Formulario de carga.
   - `/dashboard` — un mes a la vez (‹ › o tocando una barra):
@@ -124,7 +129,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
   - `/categories` — agregar, renombrar, unir y borrar (en el celular se llega desde `/expenses`).
   - `/pending` — capturar y listar pendientes.
   - `/login` — botón de Google; muestra "sin acceso" si la cuenta no está en la allowlist.
-  - `/shortcuts` — "Siri y widget de iPhone": generar, copiar y revocar claves, más la guía del atajo (link al pie de la home).
+  - `/shortcuts` — "Siri y widget de iPhone": generar la URL personal del atajo (con la clave adentro, se muestra una vez), "Probar" sin guardar, la guía paso a paso y la lista de claves con su último uso para revocarlas (link al pie de la home).
 - **Formulario de carga** (`components/ExpenseForm.tsx`, el único formulario de gastos):
   - Diseño: monto grande arriba con ARS/USD, categorías como botones ordenadas por uso, detalle opcional, fecha Hoy/Ayer/otra y acciones fijas abajo.
   - Props opcionales:
