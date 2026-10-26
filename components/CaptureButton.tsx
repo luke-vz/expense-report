@@ -3,19 +3,23 @@
 
 import { useEffect, useState } from "react";
 import { compressImage } from "@/lib/compressImage";
-import { parseAmount } from "@/lib/format";
-import { notifyPendingChanged } from "@/lib/usePendingCount";
+import { parseAmount, todayISO } from "@/lib/format";
+import { savePending } from "@/lib/pendingQueue";
 
 interface CaptureButtonProps {
   className?: string;
   children: React.ReactNode;
-  onSaved?: () => void;
+  /** Accessible name when children is only an icon. */
+  ariaLabel?: string;
+  /** Prefills the amount (the quick entry screen passes what was already typed). */
+  initialAmount?: string;
+  onSaved?: (result: "saved" | "queued") => void;
 }
 
 // "Pre-gasto": pick or take a photo, optionally jot the amount, and save it as pending.
 // The <input> has no `capture` attribute on purpose: phones then offer camera *or*
 // gallery, so screenshots (Mercado Pago, home banking) work too.
-export default function CaptureButton({ className, children, onSaved }: CaptureButtonProps) {
+export default function CaptureButton({ className, children, ariaLabel, initialAmount = "", onSaved }: CaptureButtonProps) {
   const [photo, setPhoto] = useState<Blob | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
@@ -45,6 +49,7 @@ export default function CaptureButton({ className, children, onSaved }: CaptureB
     setBusy(true);
     try {
       setPhoto(await compressImage(file));
+      setAmount(initialAmount);
     } catch {
       alert("No se pudo leer la imagen.");
     } finally {
@@ -54,34 +59,28 @@ export default function CaptureButton({ className, children, onSaved }: CaptureB
 
   const save = async () => {
     if (!photo) return;
-    const form = new FormData();
-    form.append("photo", photo, "photo.jpg");
-    if (amount) {
-      const value = parseAmount(amount);
-      if (!(value > 0)) {
-        setError("El monto no es válido (o dejalo vacío).");
-        return;
-      }
-      form.append("amount", String(value));
+    const value = amount ? parseAmount(amount) : undefined;
+    if (value !== undefined && !(value > 0)) {
+      setError("El monto no es válido (o dejalo vacío).");
+      return;
     }
-    if (note.trim()) form.append("note", note.trim());
 
     setBusy(true);
-    const res = await fetch("/api/pending", { method: "POST", body: form });
+    // Offline, it waits on the phone and is sent when the connection is back
+    const result = await savePending({ amount: value, note: note.trim() || undefined, suggestedDate: todayISO() }, photo);
     setBusy(false);
-    if (!res.ok) {
+    if (result === "error") {
       setError("No se pudo guardar. Probá de nuevo.");
       return;
     }
     close();
-    notifyPendingChanged();
-    onSaved?.();
+    onSaved?.(result);
   };
 
   return (
     <>
       <label className={`cursor-pointer ${busy && !photo ? "opacity-50 pointer-events-none" : ""} ${className ?? ""}`}>
-        <input type="file" accept="image/*" className="sr-only" onChange={onFile} />
+        <input type="file" accept="image/*" className="sr-only" onChange={onFile} aria-label={ariaLabel} />
         {busy && !photo ? "Procesando..." : children}
       </label>
 

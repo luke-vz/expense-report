@@ -159,7 +159,9 @@ function NewExpense() {
           amount: amount ? toAmountInput(amount) : "",
           categoryId: ai?.categoryId ?? "",
           date: ai?.date ?? toLocalISODate(new Date(pending.createdAt)),
-          currency: pending.amount ? "ARS" : (ai?.currency ?? "ARS"),
+          // A typed amount has no currency of its own: it's ARS unless it's the very amount the
+          // AI read (a dictated "20 dólares" on the quick entry screen keeps its USD)
+          currency: !pending.amount || ai?.amount === pending.amount ? (ai?.currency ?? "ARS") : "ARS",
         }}
         initialInstallments={ai?.installments ?? 1}
         allowInstallments

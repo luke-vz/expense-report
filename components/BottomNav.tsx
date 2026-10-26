@@ -19,12 +19,12 @@ const links = [
 ];
 
 // Mobile-only floating tab bar (design system: 72px tall, pill radius, raised, 16px above
-// the safe area), on every screen but login. Items are 64×52; the active one is pressed.
+// the safe area), on every screen but login and quick entry (it has its own bar). Items are 64×52; the active one is pressed.
 // The expense form pins its Guardar buttons right above it (see ExpenseForm).
 export default function BottomNav() {
   const pathname = usePathname();
   const pendingCount = usePendingCount();
-  if (pathname === "/login") return null;
+  if (pathname === "/login" || pathname === "/quick") return null;
 
   const item = (link: (typeof links)[number], badge = 0) => {
     const active = pathname === link.href;
@@ -58,10 +58,10 @@ export default function BottomNav() {
       >
         {item(links[0])}
         {item(links[1])}
+        {/* Quick entry (amount + "+"); the full form stays on the home's "Cargar gasto" */}
         <Link
-          href="/expenses/new"
+          href="/quick"
           aria-label="Cargar gasto"
-          aria-current={pathname === "/expenses/new" ? "page" : undefined}
           className="flex h-[52px] w-16 items-center justify-center"
         >
           <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-accent text-3xl text-accent-ink shadow-raised">
