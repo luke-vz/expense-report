@@ -8,11 +8,17 @@ App para registrar los gastos del hogar de una pareja con **caja común** (gasto
 
 Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL, Tailwind CSS v4, Recharts, next-auth v4 (Google), Vercel Blob. UI en castellano rioplatense.
 
-## Estado actual (2026-10-07)
+## Estado actual (2026-10-26)
 
-**En producción:** carga rápida de gastos (cuotas, ARS/USD, foto del ticket **leída con IA**, **por voz con IA**), "pre-gastos" (foto ahora, completar después, también leída con IA), **atajo de Siri/widget de iPhone** para cargar por voz sin abrir la app, login con Google restringido a dos mails, app instalable (barra inferior en todas las pantallas, sin encabezado en el celular), dashboard por mes y gestión de categorías. El último PR mergeado es el último de la tabla de Historial; verificar con `gh pr list` si hay alguno abierto.
+**En producción:** pantalla inicial de **carga rápida** (`/`: monto + **+**, se guarda como pendiente y funciona **sin conexión**), formulario completo de gastos (cuotas, ARS/USD, foto del ticket **leída con IA**, **por voz con IA**), "pre-gastos" (foto ahora, completar después, también leída con IA), **atajo de Siri/widget de iPhone** para cargar por voz sin abrir la app, login con Google restringido a dos mails, app instalable (barra inferior en todas las pantallas, sin encabezado en el celular), dashboard por mes y gestión de categorías. **Sistema de diseño neumórfico** con tema claro/oscuro automático (PR #26), aplicado por ahora a la carga rápida, el formulario y la barra inferior. El último PR mergeado es el último de la tabla de Historial; verificar con `gh pr list` si hay alguno abierto.
+
+**Rediseño en curso:** el usuario está rearmando las pantallas para mejorar la usabilidad, a partir del doc "Pantallas de la app de gastos" (https://claude.ai/artifact/MnmsN1AdvkWCGHRfxHLYhK: pantallas, controles y fricciones detectadas). Esperar sus definiciones antes de cambiar pantallas por cuenta propia.
 
 **A confirmar con el usuario:**
+- La carga rápida (PR #27/#28) falta probarla en su iPhone: tema claro/oscuro, el **+** con el teclado abierto y el modo avión. Si la app instalada no abre en la carga rápida, reinstalarla (el `start_url` cambió).
+- Dudas abiertas de la carga rápida:
+  - guarda **sin categoría**, como pendiente, así que cada gasto suma un paso diferido en Pendientes;
+  - el estado "supera límite" está apagado (`SPENDING_LIMIT = null`): falta decidir si el límite sería diario, mensual o por categoría (presupuestos está en pausa).
 - La lectura de tickets (PR #20) se probó con imágenes generadas. Falta que la pruebe con tickets reales (arrugados, con poca luz, capturas de su banco).
 - **El atajo de Siri/widget todavía no funciona en el iPhone del usuario.**
   - Con la primera guía (PR #22) el atajo falló **en el teléfono, sin llegar nunca al servidor**: los logs de Vercel no tenían ningún pedido a `/api/shortcuts/voice`.
@@ -40,8 +46,8 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
   - campo de nota (existe en la base, sin UI);
   - medio de pago (sugerido, el usuario no lo pidió todavía);
   - gastos fijos/recurrentes con vencimiento;
-  - importar resúmenes de tarjeta/banco;
-  - carga sin conexión (service worker + cola local).
+  - importar resúmenes de tarjeta/banco.
+- **Sistema de diseño, falta migrar:** Inicio, Gastos, Pendientes, Dashboard, Categorías y Siri siguen con las clases viejas remapeadas (`bg-secundario`, `border-card`, `bg-boton`…) y confirmaciones con `confirm()`. Esperar el rediseño del usuario.
 - **Pre-gasto, etapa que falta:** notificación push diaria de pendientes (service worker + tarea diaria de Vercel; en iPhone solo con la app instalada).
 - **Análisis:** categorías marcadas fijo/variable/prescindible; subcategorías o etiquetas; búsqueda por texto; equivalente en USD por fecha (inflación).
 - **Ahorro (en pausa):** ingresos y tasa de ahorro; presupuestos por categoría con alertas; metas de ahorro; exportar CSV/Excel.
@@ -76,6 +82,10 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 | #22 | Gasto por voz desde Siri/widget (atajo de Atajos + claves personales) |
 | #23 | Barra inferior en todas las pantallas; sin encabezado en el celular |
 | #24 | Atajo de Siri más simple: clave en la URL, cualquier formato de cuerpo, "Probar" sin guardar |
+| #25 | Docs: estado tras simplificar el atajo |
+| #26 | Sistema de diseño neumórfico: tokens claro/oscuro, formulario de carga y barra flotante |
+| #27 | Carga rápida (monto + **+**) como pendiente, sin conexión (service worker + cola en IndexedDB) |
+| #28 | La carga rápida pasa a `/` (pantalla inicial); la home pasa a `/home`; `/quick` redirige a `/` |
 
 ## Arquitectura
 
@@ -116,7 +126,8 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
     - si no es un comprobante, devuelve nulls.
   - Costo aproximado: una fracción de centavo de dólar por frase y ~0,3 centavos por foto.
 - **Páginas** — todas client components (`"use client"`) que hacen `fetch` en `useEffect` y filtran/agregan en el cliente:
-  - `/` — total del mes por moneda, "Cuotas a futuro", cartel de pendientes, "Cargar gasto" + 📷, últimos 5 gastos (sin cuotas futuras) y al pie el link a `/shortcuts` y "Conectado como … · Salir" (el nombre sale de `/api/auth/session`).
+  - `/` — **carga rápida** (ver Carga rápida), la pantalla inicial de la app instalada.
+  - `/home` — total del mes por moneda, "Cuotas a futuro", cartel de pendientes, "Cargar gasto" + 📷, últimos 5 gastos (sin cuotas futuras) y al pie el link a `/shortcuts` y "Conectado como … · Salir" (el nombre sale de `/api/auth/session`).
   - `/expenses` — tarjetas agrupadas por día con el total del día por moneda; filtros de categoría y mes; muestra quién lo cargó y 📎 si tiene foto. Tocar un gasto lo edita.
   - `/expenses/new` y `/expenses/[id]/edit` — ver Formulario de carga.
   - `/dashboard` — un mes a la vez (‹ › o tocando una barra):
@@ -128,6 +139,7 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
     Una moneda por vez: pestañas ARS/USD si hay gastos en USD.
   - `/categories` — agregar, renombrar, unir y borrar (en el celular se llega desde `/expenses`).
   - `/pending` — capturar y listar pendientes.
+  - `/quick` — redirige a `/` (las apps instaladas con el PR #27 abrían ahí).
   - `/login` — botón de Google; muestra "sin acceso" si la cuenta no está en la allowlist.
   - `/shortcuts` — "Siri y widget de iPhone": generar la URL personal del atajo (con la clave adentro, se muestra una vez), "Probar" sin guardar, la guía paso a paso y la lista de claves con su último uso para revocarlas (link al pie de la home).
 - **Formulario de carga** (`components/ExpenseForm.tsx`, el único formulario de gastos):
@@ -156,11 +168,26 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
     - El 409 de duplicado se confirma con `confirm()`; si se cancela con una foto adjunta, se borra el pendiente subido para esa foto.
   - En la edición, eliminar usa `lib/deleteExpense.ts`, que pregunta si borrar la cuota sola o todas.
 - **Layout** (`app/layout.tsx`):
-  - `Header`: **solo en desktop**, con el título, los links (Home, Gastos, Nuevo Gasto, Pendientes, Dashboard, Categorías) y "Salir". En el celular no hay encabezado (pedido del usuario: una barra solo con "Salir" sobraba). El `<main>` lleva `pt-[env(safe-area-inset-top)]` para no quedar bajo el notch, y "Conectado como … · Salir" está al pie de la home.
-  - `BottomNav`: solo en el celular, en **todas las pantallas menos `/login`**, también en el formulario (pedido del usuario), con Inicio · Gastos · **+** · Dashboard · Pendientes (con globito). Mide 3.75rem más el safe area: los botones fijos de `ExpenseForm` van pegados encima (`bottom-[calc(3.75rem+env(safe-area-inset-bottom))]`), y el aviso de "Deshacer" más arriba todavía.
+  - `Header`: **solo en desktop**, con el título y los links (Home → `/home`, Gastos, Nuevo Gasto, Pendientes, Dashboard, Categorías; el título también lleva a `/home`) y "Salir". En el celular no hay encabezado (pedido del usuario: una barra solo con "Salir" sobraba). El `<main>` lleva `pt-[env(safe-area-inset-top)]` para no quedar bajo el notch, y "Conectado como … · Salir" está al pie de la home.
+  - `BottomNav`: solo en el celular, en **todas las pantallas menos `/login` y `/`** (la carga rápida tiene su propia barra), también en el formulario (pedido del usuario), con Inicio (`/home`) · Gastos · **+** (`/`, la carga rápida) · Dashboard · Pendientes (con globito). Es una píldora flotante de 72 px, a 16 px del borde más el safe area; el ítem activo va hundido (`shadow-pressed`) con `aria-current`. El contenedor de acciones de `ExpenseForm` llega hasta abajo con `pb-[calc(100px+env(safe-area-inset-bottom))]` (así el contenido no asoma alrededor de la barra), y el aviso de "Deshacer" va en `bottom-[calc(160px+…)]`.
+  - `OfflineSync`: vacía la cola de pendientes sin conexión y registra el service worker (ver Sin conexión).
+  - `themeColor` según `prefers-color-scheme` (`#e6e9ee` claro / `#262a31` oscuro).
+- **Carga rápida** (`app/page.tsx`, pantalla inicial):
+  - "Nuevo gasto · hoy", panel hundido con el monto (`.amount-input`: `field-sizing: content` con fallback `--chars` para Safari; achica de 72 a 56/44 px con montos largos), texto de ayuda con `role="status"` y el botón circular **+** (`.fab-save`, 84 px).
+  - Guarda con `savePending` (ver Sin conexión) un **pendiente** con `amount` y `suggestedDate` (el día de carga: un guardado sin conexión puede llegar al servidor al día siguiente). Sin categoría: se completa en Pendientes.
+  - Barra propia (`nav aria-label="Acciones"`): cámara (`CaptureButton`, lleva el monto tipeado), micrófono (`VoiceButton compact`, se oculta sin Web Speech API, por ejemplo en Firefox) y Menú → `/home`.
+  - La voz llena el monto solo si lo entendió; el resto (moneda, detalle, categoría, fecha, cuotas) viaja como `suggested*` del pendiente. "$" pasa a "US$" si entendió dólares.
+  - Con el teclado abierto (`visualViewport` más chico), el form toma la altura visible y se esconde la barra, así el **+** queda arriba del teclado.
+  - Estados: vacío ("Ingresá el monto"), con monto ("Tocá + para guardar"), guardando (campo de solo lectura, spinner, "Guardando gasto…") y supera límite (`limitExcess` en `lib/spendingLimit.ts`, función pura; apagado con `SPENDING_LIMIT = null`). Después de guardar limpia el monto y confirma ("Guardado en pendientes" o "Sin conexión: quedó en este teléfono…").
+- **Sin conexión**:
+  - `lib/pendingQueue.ts`: `savePending(fields, photo)` hace el POST multipart a `/api/pending` y devuelve `"saved"`, `"queued"` (sin red: queda en IndexedDB, db `expense-report`, store `pending-queue`) o `"error"` (el servidor lo rechazó; no se encola). `flushPendingQueue()` reintenta al cargar la app y con el evento `online` (iOS no tiene Background Sync): borra lo que da OK o 400 y frena ante cualquier otra respuesta (401 con sesión vencida, 5xx).
+  - `public/sw.js`, escrito a mano, se registra **solo en producción** (en dev cachearía los chunks de Turbopack). Navegación network-first con la copia en caché sin red (y `/` como respaldo de una página nunca visitada); `/_next/static` e `/icons` cache-first; la API nunca se cachea. Como la primera visita carga antes de que el worker controle la página, `OfflineSync` le manda las URLs ya cargadas y la ruta actual, y el worker cachea esa página y `/` con los archivos que referencia su HTML. Nunca guarda redirecciones (el login). Para tirar las cachés viejas, subir `VERSION`.
+  - El `middleware.ts` excluye `sw.js` del login.
+  - Solo se guarda sin conexión lo que pasa por `savePending` (carga rápida y `CaptureButton`); el formulario completo necesita red.
 - **Pendientes ("pre-gasto")**:
   - `PendingExpense` (foto, monto y nota opcionales, `createdBy`, y lo que leyó la IA en `aiStatus` + `suggested*`) está separado de `Expense` para que nunca entre en totales ni gráficos.
-  - Captura: `components/CaptureButton.tsx` usa un input de archivo **sin** `capture`, así el teléfono ofrece cámara o galería (sirve para capturas de Mercado Pago o home banking). Comprime en el cliente (`lib/compressImage.ts`: lado máximo 1600 px, JPEG 0,75 → ~150-400 KB) y sube a `POST /api/pending` (multipart).
+  - Captura: `components/CaptureButton.tsx` usa un input de archivo **sin** `capture`, así el teléfono ofrece cámara o galería (sirve para capturas de Mercado Pago o home banking). Comprime en el cliente (`lib/compressImage.ts`: lado máximo 1600 px, JPEG 0,75 → ~150-400 KB) y sube con `savePending` (funciona sin conexión).
+  - `POST /api/pending` acepta además `suggested*` opcionales (`suggestedAmount`, `suggestedCurrency`, `suggestedTitle`, `suggestedCategoryId`, `suggestedDate`, `suggestedInstallments`): lo que entendió la voz en la carga rápida. Se validan (`suggestionFrom`) → 400; una categoría desconocida se descarta. Si hay foto para leer, la IA los pisa.
   - **Lectura con IA en segundo plano:**
     - `POST /api/pending` con foto crea el pendiente con `aiStatus: "reading"` y responde enseguida.
     - Con `after()` de Next, Haiku lee la foto y guarda `suggested*` (`aiStatus` pasa a `"done"` o `"failed"`). Usa `updateMany`, así es un no-op si el pendiente ya se completó o se descartó.
@@ -186,7 +213,15 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
   - Sin ninguna de las dos variables, las fotos se guardan en `./.uploads` (gitignoreado); en Vercel sin store falla a propósito.
   - **El `.env` local del usuario apunta al store real** (decisión suya): las pruebas locales escriben fotos reales, así que hay que borrar todo lo que se cree al probar.
   - Borrar un gasto o descartar un pendiente borra su foto (si nada más la usa).
-- **PWA**: `app/manifest.ts` (`start_url: /expenses/new`, `scope: "/"`, con atajos) e íconos en `public/icons/` (generados con ImageMagick: "$" blanco sobre `#3987e5`). `viewport-fit=cover` + `env(safe-area-inset-*)` en las barras fijas. Sin service worker: no funciona sin conexión.
+- **PWA**: `app/manifest.ts` (`start_url: "/"`, `scope: "/"`, `background_color`/`theme_color` `#e6e9ee`, con atajos) e íconos en `public/icons/` (generados con ImageMagick: "$" blanco sobre `#3987e5`, el azul anterior al sistema de diseño). `viewport-fit=cover` + `env(safe-area-inset-*)` en las barras fijas. Funciona sin conexión (ver Sin conexión).
+- **Sistema de diseño** (`app/globals.css`, neumórfico):
+  - Tokens en `:root` (`--bg`, `--surface`, `--ink`, `--ink-muted`, `--placeholder`, `--accent`, `--accent-ink`, `--accent-text`, `--focus`, `--alert`, `--alert-text`, `--shadow-light`, `--shadow-dark`), redefinidos para oscuro en `@media (prefers-color-scheme: dark)`. **Tema automático, sin selector** (decisión del usuario).
+  - Elevación: `--raised`, `--well` (hundido), `--pressed`, `--well-list`. Radios: pill 36, panel 28, tarjeta 20.
+  - Expuestos a Tailwind con `@theme inline`: `bg-bg`, `bg-surface`, `text-ink`, `text-ink-muted`, `bg-accent`, `text-accent-ink`, `text-accent-text`, `text-alert-text`, `border-line`/`divide-line`, `shadow-raised`/`well`/`pressed`, `rounded-pill`/`panel`/`card`, etc.
+  - Clases: `.text-display` (72/700), `.text-title` (24), `.text-label` (13, mayúsculas), `.card`, `.card-well`, `.btn` + `.btn-primary`/`-secondary`/`-destructive`/`-text`, `.chip` (seleccionado con `aria-pressed="true"` o `.chip-on`), `.field`, `.amount-panel` (`data-alert="true"` = supera límite; el anillo de foco va en el panel con `:focus-within`), `.fab-save`, `.amount-input`, `.tab-item`, `.spinner` (0,9 s, quieto con `prefers-reduced-motion`).
+  - `ExpenseForm` tiene la prop `overLimitMessage` (anillo de alerta en el monto + mensaje con `role="alert"`); nadie la pasa todavía.
+  - Las clases viejas (`bg-secundario`, `bg-input`, `bg-boton`, `border-card`, `header-bg`) siguen, remapeadas a los tokens, en las pantallas no migradas.
+  - Quedan con colores fijos a propósito: el botón blanco de Google, el globito rojo de Pendientes y el visor de fotos negro.
 - **Helpers**:
   - `lib/format.ts`:
     - montos: `formatMoney`, `formatAmount` (con el signo de la moneda: `$` o `US$`), `parseAmount`, `toAmountInput`;
@@ -216,8 +251,8 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
 - **Duplicados se chequean en el servidor**, no en el cliente: así detecta también lo que cargó la otra persona desde su teléfono.
 - **Título opcional en la UI:** si queda vacío, el form manda el nombre de la categoría. La API sigue exigiendo `title`. Por eso `/api/suggestions` ignora los títulos iguales al nombre de la categoría.
 - **Dashboard sin paleta categórica:**
-  - El ranking de categorías es una lista HTML con barras de un solo color (`#3987e5`, validado contra `#2b2b2b`). Con 9 o más categorías, una torta repetiría colores, y la lista se lee mejor en el celular.
-  - En el gráfico de 12 meses, el mes elegido va en azul y el resto en gris (`#4b5563`).
+  - El ranking de categorías es una lista HTML con barras de un solo color (`var(--accent-text)`: el `--accent` pálido no llega a 3:1 sobre el fondo claro). Con 9 o más categorías, una torta repetiría colores, y la lista se lee mejor en el celular.
+  - En el gráfico de 12 meses, el mes elegido va en `--accent-text` y el resto en `--placeholder`; ejes y grilla también con tokens.
   - Variaciones: que el gasto suba es lo malo → ▲ rojo / ▼ verde, siempre con flecha y signo (no solo color).
   - El promedio de 3 meses ignora los meses sin gastos, para no inflar la comparación mientras la app es nueva.
 - **Filtrado y agregación en el cliente:** las páginas traen todos los gastos y filtran en el browser. Alcanza para el volumen de un hogar; no hace falta paginar por ahora.
@@ -234,10 +269,10 @@ Stack: Next.js 15 (App Router, Turbopack) + React 19, Prisma 6 sobre PostgreSQL,
   Los mensajes de error de la API van en inglés; los de la UI, en castellano.
 - Formularios de gastos: siempre a través de `components/ExpenseForm.tsx`. Montos con `parseAmount`; para precargar uno existente, `toAmountInput`.
 - Mostrar montos con `formatAmount(amount, currency)`, que incluye el signo de la moneda; fechas con los helpers de `lib/format.ts`; títulos de gastos con `expenseTitle`.
-- Diseño pensado para el celular primero: verificar a 390 px de ancho. Botones de al menos ~44 px de alto; el color de acción principal es `#3987e5`.
+- Diseño pensado para el celular primero: verificar a 390 px de ancho. Botones de al menos ~44 px de alto; la acción principal es `.btn-primary` (acento). Verificar en tema claro **y** oscuro (Playwright `colorScheme`).
 - No anidar `<main>`: el layout ya lo pone; las páginas usan `<div>`.
 - No usar `target="_blank"` para contenido propio (saca de la app instalada); para fotos, `PhotoViewer`.
-- Estilos: tema oscuro con las clases propias de `app/globals.css` (`bg-secundario`, `bg-input`, `bg-boton`, `border-card`, `header-bg`); reusarlas.
+- Estilos: usar los tokens y las clases del sistema de diseño (ver Arquitectura); nunca colores fijos (no andan en los dos temas). Las clases viejas (`bg-secundario`, etc.) son solo para las pantallas que todavía no se migraron.
 - Git:
   - Cada cambio va en una rama `feature/...` o `fix/...` que sale de `develop`, con PR directo a `main`. Vercel despliega `main` a **Production** y cada rama pusheada como **Preview**.
   - Después de cada merge, llevar `develop` a `main` (fast-forward) y borrar la rama.
@@ -302,6 +337,7 @@ Si el contenedor existe pero está apagado (pasa después de reiniciar la máqui
 - **`vercel link` crea un `.env.local`** con las variables de Development, y Next le da prioridad sobre `.env`. Si se vuelve a vincular, borrarlo (sin leerlo) para que el dev server no apunte a bases remotas.
 - **`params` es una Promise** en los route handlers de Next 15: tiparlo `{ params: Promise<{ id: string }> }` y hacer `await`.
 - **Fechas:** ver Decisiones. Para el valor por defecto de un `<input type="date">` usar `todayISO()`, no `toISOString()` (de noche da la fecha de mañana).
-- **Tailwind:** v4 vía `@import "tailwindcss"` en `app/globals.css`; no hay `tailwind.config.js` ni modo claro. Las clases propias de `globals.css` no admiten variantes (`hover:bg-secundario` no funciona): para hover, usar utilidades de Tailwind (p. ej. `hover:bg-neutral-800`).
+- **Tailwind:** v4 vía `@import "tailwindcss"` en `app/globals.css`; no hay `tailwind.config.js`; los tokens se exponen con `@theme inline`. Las clases propias de `globals.css` (`.btn`, `.chip`…) no admiten variantes (`hover:btn-primary` no funciona): para variantes, usar las utilidades de los tokens (p. ej. `active:shadow-pressed`).
+- **Probar sin conexión:** el service worker solo se registra en producción: `npm run build && npm start -- -p 3100` (frenar antes el dev server). En Playwright, `context.setOffline(true)` después de una primera visita con red; IndexedDB se mira con `page.evaluate`. Para volver a dev: `rm -rf .next`. Si el navegador quedó con un worker viejo de una prueba, desregistrarlo (en dev no se registra, pero el de producción sigue controlando el origen).
 - **Probar en "celular":** Playwright con `executablePath: "/usr/bin/chromium-browser"` (la versión de navegador de Playwright no está instalada), viewport 390×844, `isMobile` y `hasTouch`. Recharts anima las barras al entrar y los chips tienen `transition-colors`: esperar antes de capturar (~2 s en el dashboard). Las categorías del formulario cargan un instante después de la página: esperar a que estén (por ejemplo, un chip con `aria-pressed="true"`) antes de leer el formulario o tocar Guardar; si no, la prueba ve la categoría vacía y el guardado pide elegirla.
 - **Editar este archivo con scripts:** verificar que cada reemplazo se aplicó (por ejemplo, con `assert` en Python). Un reemplazo que no encuentra el texto falla en silencio; así se perdió una vez la sección de Arquitectura.

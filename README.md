@@ -6,7 +6,9 @@ Producción: https://expense-report-mu.vercel.app (requiere una cuenta de Google
 
 ## Qué hace
 
-- **Carga rápida:**
+- **Carga rápida al abrir la app:** se tipea el monto y se toca **+**. Queda en Pendientes para ponerle la categoría después. También tiene cámara (foto del ticket) y micrófono (decir el gasto).
+- **Funciona sin conexión:** la app abre igual sin señal, y lo que se carga en la carga rápida queda guardado en el teléfono hasta que vuelve la conexión.
+- **Formulario completo:**
   - monto grande con teclado numérico (acepta `1.500,50`) y moneda ARS o USD;
   - categorías como botones, ordenadas por uso;
   - atajos con los gastos más frecuentes y autocompletado del detalle;
@@ -21,7 +23,8 @@ Producción: https://expense-report-mu.vercel.app (requiere una cuenta de Google
 - **Dashboard por mes:** total y variación contra el mes anterior y el promedio de 3 meses, ranking de categorías, gastos más grandes y tendencia de 12 meses.
 - **Categorías** editables (renombrar, unir, borrar).
 - **Login con Google** restringido a una lista de mails.
-- **Pensada para el celular:** se instala como app, con una barra inferior siempre visible y el botón **+** para cargar desde cualquier pantalla.
+- **Pensada para el celular:** se instala como app, con una barra inferior flotante y el botón **+** para volver a la carga rápida desde cualquier pantalla.
+- **Tema claro u oscuro** automático, según el teléfono (estilo neumórfico).
 
 ## Stack
 
@@ -71,6 +74,7 @@ Mientras la pantalla de consentimiento esté en modo prueba, los mails permitido
 |---|---|
 | `npm run dev` | Servidor de desarrollo (Turbopack) |
 | `npm run build` | `prisma generate` + `next build`; en Vercel Production además aplica las migraciones |
+| `npm start` | Sirve el build; necesario para probar el modo sin conexión (el service worker no se registra en dev) |
 | `npm run lint` | ESLint |
 | `npx tsc --noEmit` | Chequeo de tipos |
 | `npx prisma migrate dev --create-only --name <nombre>` | Generar una migración para revisarla antes de aplicarla |
@@ -85,7 +89,7 @@ Mientras la pantalla de consentimiento esté en modo prueba, los mails permitido
 ## Más detalle
 
 `CLAUDE.md` tiene:
-- la arquitectura completa (API, páginas, auth, fotos, cuotas);
+- la arquitectura completa (API, páginas, auth, fotos, cuotas, modo sin conexión, sistema de diseño);
 - las decisiones de diseño y su porqué;
 - las convenciones del proyecto;
 - los problemas conocidos;
